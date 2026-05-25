@@ -107,6 +107,82 @@ def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature)
     return distance, direction
 
 
+def get_sector(point1, point2):
+    """
+    Определяет сектор между двумя точками
+
+    Args:
+        point1 (Point): Начальная точка
+        point2 (Point): Конечная точка
+
+    Returns:
+        str: Сектор со стороной света
+    """
+    # Вычисляем угол между точками
+    dx = point2.x - point1.x
+    dy = point2.y - point1.y
+
+    # Вычисляем угол в градусах
+    angle = math.degrees(math.atan2(dy, dx))
+
+    # Нормализуем угол от 0 до 360
+    if angle < 0:
+        angle += 360
+
+    # Определяем сектор
+    sectors = [
+        (0, 45, "СВ"),
+        (45, 90, "В"),
+        (90, 135, "ЮВ"),
+        (135, 180, "Ю"),
+        (180, 225, "ЮЗ"),
+        (225, 270, "З"),
+        (270, 315, "СЗ"),
+        (315, 360, "С")
+    ]
+
+    for start, end, sector in sectors:
+        if start <= angle < end:
+            return sector
+
+    return "С"  # На случай если угол == 360
+
+
+def plot_sectors(ax, center, radius, color='lightgray', alpha=0.2):
+    """
+    Рисует секторы вокруг центральной точки
+
+    Args:
+        ax (matplotlib.axes.Axes): Осевой объект для рисования
+        center (Point): Центральная точка
+        radius (float): Радиус секторов
+        color (str, optional): Цвет секторов. Defaults to 'lightgray'.
+        alpha (float, optional): Прозрачность. Defaults to 0.2.
+    """
+    angles = [0, 45, 90, 135, 180, 225, 270, 315, 360]
+
+    for start, end in zip(angles[:-1], angles[1:]):
+        # Преобразуем углы в радианы
+        start_rad, end_rad = math.radians(start), math.radians(end)
+
+        # Вычисляем точки сектора
+        x1 = center.x + radius * math.cos(start_rad)
+        y1 = center.y + radius * math.sin(start_rad)
+        x2 = center.x + radius * math.cos(end_rad)
+        y2 = center.y + radius * math.sin(end_rad)
+
+        # Создаем сектор как многоугольник
+        sector_poly = Polygon([
+            (center.x, center.y),
+            (x1, y1),
+            (x2, y2)
+        ])
+
+        # Рисуем сектор
+        x, y = sector_poly.exterior.xy
+        ax.fill(x, y, color=color, alpha=alpha)
+
+
 def plot_features(target_feat, neighbor_feats, search_circle):
     plt.figure(figsize=(15, 10))
 
@@ -134,6 +210,10 @@ def plot_features(target_feat, neighbor_feats, search_circle):
     search_circle_utm = transform(crs_4326_to_utm, search_circle)
     plt.fill(*search_circle_utm.exterior.xy, color='gray', alpha=0.1, label='Область поиска')
     plt.plot(*search_circle_utm.exterior.xy, color='gray', linestyle='--', linewidth=1)
+
+    # Отрисовка секторов
+    search_circle_center = search_circle_utm.centroid
+    plot_sectors(plt.gca(), search_circle_center, search_circle_utm.exterior.distance(search_circle_center))
 
     # Отрисовка целевого участка
     target_feat_utm = transform(crs_4326_to_utm, target_feat.geometry.to_shape())
