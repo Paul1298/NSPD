@@ -12,6 +12,8 @@ import pynspd  # Библиотека для работы с кадастром
 from pyproj import Transformer, CRS
 from shapely.ops import transform, nearest_points
 import shapely.plotting
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def search_area(target_feat: NspdFeature, radius_meters=100) -> Polygon:
@@ -92,7 +94,7 @@ def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature)
 
     neighbor_feat_4326 = neighbor_feat.geometry.to_shape()
     neighbor_feat_utm = transform(crs_4326_to_utm, neighbor_feat_4326)
-    shapely.plotting.plot_polygon(neighbor_feat_utm)
+    shapely.plotting.plot_polygon(neighbor_feat_utm, add_points=False)
 
     # Находим ближайшие точки
     nearest_pts = nearest_points(target_feat_utm, neighbor_feat_utm)
@@ -104,6 +106,64 @@ def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature)
 
     return distance, direction
 
+
+def plot_features(target_feat, neighbor_feats):
+    # Создаем новую фигуру
+    plt.figure(figsize=(15, 10))
+
+    # Подготовка цветов для разных направлений
+    directions = [
+        "с северной стороны",
+        "с северо-восточной стороны",
+        "с восточной стороны",
+        "с юго-восточной стороны",
+        "с южной стороны",
+        "с юго-западной стороны",
+        "с западной стороны",
+        "с северо-западной стороны"
+    ]
+    color_map = {direction: plt.cm.tab10(i) for i, direction in enumerate(directions)}
+
+    # Преобразование в UTM для корректного отображения
+    gdf = gpd.GeoDataFrame(
+        {'id': [1], 'geometry': [target_feat.geometry.to_shape()]},
+        crs='EPSG:4326'
+    )
+    UTM_CRS = gdf.estimate_utm_crs()
+
+    crs_4326_to_utm = Transformer.from_crs(CRS("EPSG:4326"), UTM_CRS, always_xy=True).transform
+
+    # Отрисовка целевого участка
+    target_feat_utm = transform(crs_4326_to_utm, target_feat.geometry.to_shape())
+    # target_feat_utm = target_feat.geometry.to_shape()
+    plt.fill(*target_feat_utm.exterior.xy, color='red', alpha=0.5, label='Целевой участок')
+
+    # Отрисовка соседних участков
+    for neighbor_feat in neighbor_feats:
+        if neighbor_feat.properties.options.cad_num == target_feat.properties.options.cad_num:
+            continue
+
+        # Получаем расстояние и направление
+        dist, direction = get_distance_direction(target_feat, neighbor_feat)
+
+        # Преобразуем в UTM
+        neighbor_feat_utm = transform(crs_4326_to_utm, neighbor_feat.geometry.to_shape())
+        # neighbor_feat_utm = neighbor_feat.geometry.to_shape()
+
+        # Выбираем цвет в зависимости от направления
+        color = color_map.get(direction, 'gray')
+
+        # Отрисовка полигона
+        plt.fill(*neighbor_feat_utm.exterior.xy, color=color, alpha=0.5,
+                 label=f'{neighbor_feat.properties.options.cad_num} ({direction})')
+        # plt.plot(*neighbor_feat_utm.exterior.xy, color=color, marker='o', markersize=2, linestyle='-')
+
+    plt.title('Участки и их взаиморасположение')
+    plt.xlabel('Координата X')
+    plt.ylabel('Координата Y')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    plt.show()
 
 def main(kad_id, radius_meters=100):
     # 1. Подключение к NSPD
@@ -127,6 +187,15 @@ def main(kad_id, radius_meters=100):
 
         print(f"Соседи в радиусе {radius_meters}м. : {len(cns)}\n",  '\n'.join(cns))
         # print(cns)
+
+        neighbor_feats = [
+            feat for feat in neighbor_feats
+            if feat.properties.options.cad_num != '50:58:0000000:12'
+        ]
+
+        # Добавляем визуализацию
+        plot_features(target_feat, neighbor_feats)
+        return
 
         # 5. Обработка найденных участков
         processed_neighbors = []
