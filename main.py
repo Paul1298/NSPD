@@ -94,7 +94,7 @@ def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature)
 
     neighbor_feat_4326 = neighbor_feat.geometry.to_shape()
     neighbor_feat_utm = transform(crs_4326_to_utm, neighbor_feat_4326)
-    # shapely.plotting.plot_polygon(neighbor_feat_utm, add_points=False)
+    shapely.plotting.plot_polygon(neighbor_feat_utm, add_points=False)
 
     # Находим ближайшие точки
     nearest_pts = nearest_points(target_feat_utm, neighbor_feat_utm)
@@ -256,22 +256,23 @@ def plot_features(target_feat, neighbor_feats, search_circle, radius_meters):
                  label=f'{neighbor_feat.properties.options.cad_num} ({direction})')
         # plt.plot(*neighbor_feat_utm.exterior.xy, color=color, marker='o', markersize=2, linestyle='-')
 
+    plt.axis('equal')  # Сохраняем пропорции
     target_center = target_feat_utm.centroid
     # Устанавливаем границы области отображения
+    coef = 1.5
     plt.xlim(
-        target_center.x - radius_meters * 3,
-        target_center.x + radius_meters * 3
+        target_center.x - radius_meters * coef,
+        target_center.x + radius_meters * coef
     )
     plt.ylim(
-        target_center.y - radius_meters * 3,
-        target_center.y + radius_meters * 3
+        target_center.y - radius_meters * coef,
+        target_center.y + radius_meters * coef
     )
 
     plt.title('Участки и их взаиморасположение')
     plt.xlabel('Координата X')
     plt.ylabel('Координата Y')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.axis('equal')  # Сохраняем пропорции
     plt.tight_layout()
     plt.show()
 
