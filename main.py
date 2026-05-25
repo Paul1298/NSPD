@@ -148,20 +148,32 @@ def get_sector(point1, point2):
     return "С"  # На случай если угол == 360
 
 
-def plot_sectors(ax, center, radius, color='lightgray', alpha=0.2):
+def plot_sectors(ax, center, radius, color_map=None):
     """
-    Рисует секторы вокруг центральной точки
+    Рисует секторы вокруг центральной точки с заданными градусами и цветами
 
     Args:
         ax (matplotlib.axes.Axes): Осевой объект для рисования
         center (Point): Центральная точка
         radius (float): Радиус секторов
-        color (str, optional): Цвет секторов. Defaults to 'lightgray'.
-        alpha (float, optional): Прозрачность. Defaults to 0.2.
+        color_map (dict, optional): Словарь цветов для секторов
     """
-    angles = [0, 45, 90, 135, 180, 225, 270, 315, 360]
+    sectors = [
+        ("с северной стороны", 337.5, 22.5),
+        ("с северо-восточной стороны", 22.5, 67.5),
+        ("с восточной стороны", 67.5, 112.5),
+        ("с юго-восточной стороны", 112.5, 157.5),
+        ("с южной стороны", 157.5, 202.5),
+        ("с юго-западной стороны", 202.5, 247.5),
+        ("с западной стороны", 247.5, 292.5),
+        ("с северо-западной стороны", 292.5, 337.5)
+    ]
 
-    for start, end in zip(angles[:-1], angles[1:]):
+    # Если цветовая карта не передана, используем дефолтную
+    if color_map is None:
+        color_map = {direction: plt.cm.tab10(i) for i, (direction, _, _) in enumerate(sectors)}
+
+    for direction, start, end in sectors:
         # Преобразуем углы в радианы
         start_rad, end_rad = math.radians(start), math.radians(end)
 
@@ -178,9 +190,12 @@ def plot_sectors(ax, center, radius, color='lightgray', alpha=0.2):
             (x2, y2)
         ])
 
+        # Выбираем цвет для сектора
+        color = color_map.get(direction, 'lightgray')
+
         # Рисуем сектор
         x, y = sector_poly.exterior.xy
-        ax.fill(x, y, color=color, alpha=alpha)
+        ax.fill(x, y, color=color, alpha=0.2)
 
 
 def plot_features(target_feat, neighbor_feats, search_circle):
@@ -213,7 +228,12 @@ def plot_features(target_feat, neighbor_feats, search_circle):
 
     # Отрисовка секторов
     search_circle_center = search_circle_utm.centroid
-    plot_sectors(plt.gca(), search_circle_center, search_circle_utm.exterior.distance(search_circle_center))
+    plot_sectors(
+        plt.gca(),
+        search_circle_center,
+        search_circle_utm.exterior.distance(search_circle_center),
+        color_map
+    )
 
     # Отрисовка целевого участка
     target_feat_utm = transform(crs_4326_to_utm, target_feat.geometry.to_shape())
