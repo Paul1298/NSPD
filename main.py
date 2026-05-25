@@ -94,7 +94,7 @@ def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature)
 
     neighbor_feat_4326 = neighbor_feat.geometry.to_shape()
     neighbor_feat_utm = transform(crs_4326_to_utm, neighbor_feat_4326)
-    shapely.plotting.plot_polygon(neighbor_feat_utm, add_points=False)
+    # shapely.plotting.plot_polygon(neighbor_feat_utm, add_points=False)
 
     # Находим ближайшие точки
     nearest_pts = nearest_points(target_feat_utm, neighbor_feat_utm)
@@ -198,7 +198,7 @@ def plot_sectors(ax, center, radius, color_map=None):
         ax.fill(x, y, color=color, alpha=0.2)
 
 
-def plot_features(target_feat, neighbor_feats, search_circle):
+def plot_features(target_feat, neighbor_feats, search_circle, radius_meters):
     plt.figure(figsize=(15, 10))
 
     directions = [
@@ -256,10 +256,22 @@ def plot_features(target_feat, neighbor_feats, search_circle):
                  label=f'{neighbor_feat.properties.options.cad_num} ({direction})')
         # plt.plot(*neighbor_feat_utm.exterior.xy, color=color, marker='o', markersize=2, linestyle='-')
 
+    target_center = target_feat_utm.centroid
+    # Устанавливаем границы области отображения
+    plt.xlim(
+        target_center.x - radius_meters * 3,
+        target_center.x + radius_meters * 3
+    )
+    plt.ylim(
+        target_center.y - radius_meters * 3,
+        target_center.y + radius_meters * 3
+    )
+
     plt.title('Участки и их взаиморасположение')
     plt.xlabel('Координата X')
     plt.ylabel('Координата Y')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.axis('equal')  # Сохраняем пропорции
     plt.tight_layout()
     plt.show()
 
@@ -286,13 +298,13 @@ def main(kad_id, radius_meters=100):
         print(f"Соседи в радиусе {radius_meters}м. : {len(cns)}\n",  '\n'.join(cns))
         # print(cns)
 
-        neighbor_feats = [
-            feat for feat in neighbor_feats
-            if feat.properties.options.cad_num != '50:58:0000000:12'
-        ]
+        # neighbor_feats = [
+        #     feat for feat in neighbor_feats
+        #     if feat.properties.options.cad_num != '50:58:0000000:12'
+        # ]
 
         # Добавляем визуализацию
-        plot_features(target_feat, neighbor_feats, search_circle)
+        plot_features(target_feat, neighbor_feats, search_circle, radius_meters)
         return
 
         # 5. Обработка найденных участков
