@@ -17,6 +17,12 @@ import numpy as np
 
 
 def search_area(target_feat: NspdFeature, radius_meters=100) -> Polygon:
+    """
+    Возвращает в 4326
+    :param target_feat:
+    :param radius_meters:
+    :return:
+    """
     target_feat_4326 = target_feat.geometry.to_shape()
 
     gdf = gpd.GeoDataFrame(
@@ -39,47 +45,99 @@ def search_area(target_feat: NspdFeature, radius_meters=100) -> Polygon:
     return circle_polygon
 
 
-def get_direction(point1, point2):
+# def get_direction(point1, point2):
+#     """
+#     Определяет направление от point1 к point2
+#
+#     Args:
+#         point1 (Point): Начальная точка
+#         point2 (Point): Конечная точка
+#
+#     Returns:
+#         str: Направление света
+#     """
+#     # Вычисляем угол между точками
+#     dx = point2.x - point1.x
+#     dy = point2.y - point1.y
+#
+#     # Вычисляем угол в градусах
+#     angle = math.degrees(math.atan2(dy, dx))
+#
+#     # Нормализуем угол от 0 до 360
+#     if angle < 0:
+#         angle += 360
+#
+#     # Определяем направление
+#     directions = [
+#         ("с северной стороны", 337.5, 22.5),
+#         ("с северо-восточной стороны", 22.5, 67.5),
+#         ("с восточной стороны", 67.5, 112.5),
+#         ("с юго-восточной стороны", 112.5, 157.5),
+#         ("с южной стороны", 157.5, 202.5),
+#         ("с юго-западной стороны", 202.5, 247.5),
+#         ("с западной стороны", 247.5, 292.5),
+#         ("с северо-западной стороны", 292.5, 337.5)
+#     ]
+#
+#     for direction, start, end in directions:
+#         if start <= angle < end:
+#             return direction
+#
+#     return "с северной стороны"  # На случай if angle == 360
+def get_direction(target_poly, neighbor_poly, search_circle_utm):
     """
-    Определяет направление от point1 к point2
+    Определяет направления между полигонами с учетом секторов
 
     Args:
-        point1 (Point): Начальная точка
-        point2 (Point): Конечная точка
+        target_poly (Polygon): Целевой полигон
+        neighbor_poly (Polygon): Полигон соседа
+        search_circle_utm (Polygon): Круг поиска в UTM
 
     Returns:
-        str: Направление света
+        str: Направления света
     """
-    # Вычисляем угол между точками
-    dx = point2.x - point1.x
-    dy = point2.y - point1.y
-
-    # Вычисляем угол в градусах
-    angle = math.degrees(math.atan2(dy, dx))
-
-    # Нормализуем угол от 0 до 360
-    if angle < 0:
-        angle += 360
-
-    # Определяем направление
+    # Базовые направления
     directions = [
-        ("с северной стороны", 337.5, 22.5),
-        ("с северо-восточной стороны", 22.5, 67.5),
-        ("с восточной стороны", 67.5, 112.5),
-        ("с юго-восточной стороны", 112.5, 157.5),
-        ("с южной стороны", 157.5, 202.5),
-        ("с юго-западной стороны", 202.5, 247.5),
-        ("с западной стороны", 247.5, 292.5),
-        ("с северо-западной стороны", 292.5, 337.5)
+        ("с северной стороны", 67.5, 112.5),  # Сектор вокруг 90 градусов
+        ("с северо-восточной стороны", 22.5, 67.5),  # Сектор вокруг 45 градусов
+        ("с восточной стороны", 337.5, 22.5),  # Сектор вокруг 0/360 градусов
+        ("с юго-восточной стороны", 292.5, 337.5),  # Сектор вокруг 315 градусов
+        ("с южной стороны", 247.5, 292.5),  # Сектор вокруг 270 градусов
+        ("с юго-западной стороны", 202.5, 247.5),  # Сектор вокруг 225 градусов
+        ("с западной стороны", 157.5, 202.5),  # Сектор вокруг 180 градусов
+        ("с северо-западной стороны", 112.5, 157.5),  # Сектор вокруг 135 градусов
     ]
 
-    for direction, start, end in directions:
-        if start <= angle < end:
-            return direction
+    # Центр круга поиска
+    search_center = search_circle_utm.centroid
+    radius = search_circle_utm.exterior.distance(search_center)
 
-    return "с северной стороны"  # На случай if angle == 360
+    detected_directions = []
 
-def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature):
+    for direction_name, start, end in directions:
+        # Вычисляем точки сектора
+        start_rad, end_rad = math.radians(start), math.radians(end)
+
+        x1 = search_center.x + radius * math.cos(start_rad)
+        y1 = search_center.y + radius * math.sin(start_rad)
+        x2 = search_center.x + radius * math.cos(end_rad)
+        y2 = search_center.y + radius * math.sin(end_rad)
+
+        # Создаем полигон сектора
+        sector_poly = Polygon([
+            (search_center.x, search_center.y),
+            (x1, y1),
+            (x2, y2)
+        ])
+
+        # Проверяем пересечение центроидов
+        if sector_poly.intersects(neighbor_poly):
+            detected_directions.append(direction_name)
+
+    # Возвращаем список направлений или дефолтное
+    return ', '.join(detected_directions) if detected_directions else "не опознан"
+
+def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature, search_circle_utm: Polygon):
     target_feat_4326 = target_feat.geometry.to_shape()
 
     gdf = gpd.GeoDataFrame(
@@ -101,7 +159,7 @@ def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature)
     # Вычисляем расстояние между ближайшими точками
     distance = int(nearest_pts[0].distance(nearest_pts[1])) #todo rounding to int - maybe replace with ceil
 
-    direction = get_direction(nearest_pts[0], nearest_pts[1]) #todo replace with sectors
+    direction = get_direction(target_feat_utm, neighbor_feat_utm, search_circle_utm) #todo replace with sectors
 
 
     return distance, direction
@@ -159,14 +217,14 @@ def plot_sectors(ax, center, radius, color_map=None):
         color_map (dict, optional): Словарь цветов для секторов
     """
     sectors = [
-        ("с северной стороны", 337.5, 22.5),
-        ("с северо-восточной стороны", 22.5, 67.5),
-        ("с восточной стороны", 67.5, 112.5),
-        ("с юго-восточной стороны", 112.5, 157.5),
-        ("с южной стороны", 157.5, 202.5),
-        ("с юго-западной стороны", 202.5, 247.5),
-        ("с западной стороны", 247.5, 292.5),
-        ("с северо-западной стороны", 292.5, 337.5)
+        ("с северной стороны", 67.5, 112.5),  # Сектор вокруг 90 градусов
+        ("с северо-восточной стороны", 22.5, 67.5),  # Сектор вокруг 45 градусов
+        ("с восточной стороны", 337.5, 22.5),  # Сектор вокруг 0/360 градусов
+        ("с юго-восточной стороны", 292.5, 337.5),  # Сектор вокруг 315 градусов
+        ("с южной стороны", 247.5, 292.5),  # Сектор вокруг 270 градусов
+        ("с юго-западной стороны", 202.5, 247.5),  # Сектор вокруг 225 градусов
+        ("с западной стороны", 157.5, 202.5),  # Сектор вокруг 180 градусов
+        ("с северо-западной стороны", 112.5, 157.5),  # Сектор вокруг 135 градусов
     ]
 
     # Если цветовая карта не передана, используем дефолтную
@@ -195,7 +253,7 @@ def plot_sectors(ax, center, radius, color_map=None):
 
         # Рисуем сектор
         x, y = sector_poly.exterior.xy
-        ax.fill(x, y, color=color, alpha=0.2)
+        ax.fill(x, y, color=color, alpha=0.1)
 
 
 def plot_features(target_feat, neighbor_feats, search_circle, radius_meters):
@@ -246,20 +304,34 @@ def plot_features(target_feat, neighbor_feats, search_circle, radius_meters):
         if neighbor_feat.properties.options.cad_num == target_feat.properties.options.cad_num:
             continue
 
-        dist, direction = get_distance_direction(target_feat, neighbor_feat)
+        dist, direction = get_distance_direction(target_feat, neighbor_feat, search_circle_utm)
 
         neighbor_feat_utm = transform(crs_4326_to_utm, neighbor_feat.geometry.to_shape())
 
-        color = color_map.get(direction, 'gray')
+        color = color_map.get(direction.split(',')[0], 'gray')
 
-        plt.fill(*neighbor_feat_utm.exterior.xy, color=color, alpha=0.5,
-                 label=f'{neighbor_feat.properties.options.cad_num} ({direction})')
+
+        if len(direction.split(',')) > 1:
+            directions_str = '\n' + direction.replace(',', ',\n')
+        else:
+            directions_str = direction
+
+        try:
+            plt.fill(*neighbor_feat_utm.exterior.xy, color=color, alpha=0.5,
+                     label=f'{neighbor_feat.properties.options.cad_num[6:]} ({directions_str})')
+        except:
+            pass
         # plt.plot(*neighbor_feat_utm.exterior.xy, color=color, marker='o', markersize=2, linestyle='-')
 
-    plt.axis('equal')  # Сохраняем пропорции
+        # Добавляем подпись кадастрового номера для соседних участков
+        plt.text(neighbor_feat_utm.centroid.x, neighbor_feat_utm.centroid.y,
+                 neighbor_feat.properties.options.cad_num[6:],
+                 fontsize=8, ha='center', va='center')
+
     target_center = target_feat_utm.centroid
+    # plt.tight_layout()
     # Устанавливаем границы области отображения
-    coef = 1.5
+    coef = 1
     plt.xlim(
         target_center.x - radius_meters * coef,
         target_center.x + radius_meters * coef
@@ -273,7 +345,10 @@ def plot_features(target_feat, neighbor_feats, search_circle, radius_meters):
     plt.xlabel('Координата X')
     plt.ylabel('Координата Y')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.subplots_adjust(right=0.75)
+
     plt.tight_layout()
+    # plt.axis('equal')  # Сохраняем пропорции
     plt.show()
 
 def main(kad_id, radius_meters=100):
@@ -368,3 +443,4 @@ def generate_report(target_feat, neighbors):
 if __name__ == "__main__":
     # Пример использования
     main('50:58:0020204:50', radius_meters=175)
+    # main('58:29:3007008:13', radius_meters=90)
