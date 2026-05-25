@@ -107,11 +107,9 @@ def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature)
     return distance, direction
 
 
-def plot_features(target_feat, neighbor_feats):
-    # Создаем новую фигуру
+def plot_features(target_feat, neighbor_feats, search_circle):
     plt.figure(figsize=(15, 10))
 
-    # Подготовка цветов для разных направлений
     directions = [
         "с северной стороны",
         "с северо-восточной стороны",
@@ -124,7 +122,6 @@ def plot_features(target_feat, neighbor_feats):
     ]
     color_map = {direction: plt.cm.tab10(i) for i, direction in enumerate(directions)}
 
-    # Преобразование в UTM для корректного отображения
     gdf = gpd.GeoDataFrame(
         {'id': [1], 'geometry': [target_feat.geometry.to_shape()]},
         crs='EPSG:4326'
@@ -133,27 +130,28 @@ def plot_features(target_feat, neighbor_feats):
 
     crs_4326_to_utm = Transformer.from_crs(CRS("EPSG:4326"), UTM_CRS, always_xy=True).transform
 
+    # Отрисовка области поиска
+    search_circle_utm = transform(crs_4326_to_utm, search_circle)
+    plt.fill(*search_circle_utm.exterior.xy, color='gray', alpha=0.1, label='Область поиска')
+    plt.plot(*search_circle_utm.exterior.xy, color='gray', linestyle='--', linewidth=1)
+
     # Отрисовка целевого участка
     target_feat_utm = transform(crs_4326_to_utm, target_feat.geometry.to_shape())
-    # target_feat_utm = target_feat.geometry.to_shape()
+
     plt.fill(*target_feat_utm.exterior.xy, color='red', alpha=0.5, label='Целевой участок')
+    # plt.plot(*target_feat_utm.exterior.xy, color='red', marker='o', markersize=2, linestyle='-')
 
     # Отрисовка соседних участков
     for neighbor_feat in neighbor_feats:
         if neighbor_feat.properties.options.cad_num == target_feat.properties.options.cad_num:
             continue
 
-        # Получаем расстояние и направление
         dist, direction = get_distance_direction(target_feat, neighbor_feat)
 
-        # Преобразуем в UTM
         neighbor_feat_utm = transform(crs_4326_to_utm, neighbor_feat.geometry.to_shape())
-        # neighbor_feat_utm = neighbor_feat.geometry.to_shape()
 
-        # Выбираем цвет в зависимости от направления
         color = color_map.get(direction, 'gray')
 
-        # Отрисовка полигона
         plt.fill(*neighbor_feat_utm.exterior.xy, color=color, alpha=0.5,
                  label=f'{neighbor_feat.properties.options.cad_num} ({direction})')
         # plt.plot(*neighbor_feat_utm.exterior.xy, color=color, marker='o', markersize=2, linestyle='-')
@@ -194,7 +192,7 @@ def main(kad_id, radius_meters=100):
         ]
 
         # Добавляем визуализацию
-        plot_features(target_feat, neighbor_feats)
+        plot_features(target_feat, neighbor_feats, search_circle)
         return
 
         # 5. Обработка найденных участков
