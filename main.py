@@ -21,13 +21,13 @@ def main(kad_id, radius_meters=100):
         search_circle_utm = search_area(target, radius_meters)
 
         # 4. Поиск соседних участков
-        neighbors = process_neighbors(target, search_circle_utm, nspd.search_in_contour, crs_4326_to_utm, crs_utm_to_4326)
+        processed_neighbors = process_neighbors(target, search_circle_utm, nspd.search_in_contour, crs_4326_to_utm, crs_utm_to_4326)
 
         # Добавляем визуализацию
-        plot_features(target, neighbors, search_circle_utm, radius_meters)
+        # plot_features(target, processed_neighbors, search_circle_utm, radius_meters)
 
         # 6. Генерация отчета
-        # generate_report(target_feat, processed_neighbors)
+        generate_report(target, processed_neighbors)
 
 
 if __name__ == "__main__":

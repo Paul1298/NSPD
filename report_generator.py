@@ -1,11 +1,10 @@
-# target_permission = nspd.tab_permission_type(target_feat)
+import datetime
+import time
 
-
-def generate_report(target_feat, neighbors):
-    return
+def generate_report(target, neighbors):
     # Формирование текстового отчета
-    report = f"Отчет для участка {target_feat.kad_num}\n"
-    report += f"Разрешенное использование: {target_feat.tab_permission_type()}\n\n"
+    report = f"Отчет для участка {target["kad_id"]}\n"
+    report += f"Разрешенное использование: {target["permission"]}\n\n"
 
     # Группировка и сортировка соседей по направлениям
     neighbors_by_direction = {}
@@ -25,7 +24,8 @@ def generate_report(target_feat, neighbors):
             )
 
     # Сохранение в файл
-    with open('report.txt', 'w', encoding='utf-8') as f:
+    name = f'report_{datetime.datetime.now().strftime("%H:%M:%S")}.txt'
+    with open(name, 'w', encoding='utf-8') as f:
         f.write(report)
 
     print("Отчет сохранен в report.txt")
