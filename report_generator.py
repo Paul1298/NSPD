@@ -121,7 +121,7 @@ def generate_report(target, aoi_neighbors) -> str:
     # --- 4. Сохранение ---
     final_report_text = "\n".join(report_lines)
 
-    name = f'report_{target["kad_id"]}_{datetime.datetime.now().strftime("%H:%M:%S")}.txt'
+    name = f'report_{target["kad_id"].replace(":", "_")}.txt'
     # name = f'report_test.txt'
     with open(name, 'w', encoding='utf-8') as f:
         f.write(final_report_text)

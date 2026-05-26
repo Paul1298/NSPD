@@ -74,19 +74,6 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters):
     ]
     color_map = {direction: plt.cm.tab10(i) for i, direction in enumerate(directions)}
 
-    # gdf = gpd.GeoDataFrame(
-    #     {'id': [1], 'geometry': [target_feat.geometry.to_shape()]},
-    #     crs='EPSG:4326'
-    # )
-    # UTM_CRS = gdf.estimate_utm_crs()
-    #
-    # crs_4326_to_utm = Transformer.from_crs(CRS("EPSG:4326"), UTM_CRS, always_xy=True).transform
-    #
-    # # Отрисовка области поиска
-    # search_circle_utm = transform(crs_4326_to_utm, search_circle)
-    # plt.fill(*search_circle_utm.exterior.xy, color='gray', alpha=0.1, label='Область поиска')
-    # plt.plot(*search_circle_utm.exterior.xy, color='gray', linestyle='--', linewidth=1)
-
     # Отрисовка секторов
     sectors = get_sectors(search_circle_utm)
 

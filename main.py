@@ -18,7 +18,7 @@ def get_base_path():
         return os.path.dirname(os.path.abspath(__file__))
 
 # 1. Добавляем новый аргумент в функцию main
-def main(kad_id, radius_meters, draw_plot_flag):
+def main(kad_id, radius_meters = 100, draw_plot_flag = False, area_limit = 2):
     print(f"Запускаем анализ для участка {kad_id} с радиусом {radius_meters} м...")
 
     with Nspd() as nspd:
@@ -34,7 +34,12 @@ def main(kad_id, radius_meters, draw_plot_flag):
 
         # 4. Поиск соседних участков
         processed_neighbors = process_neighbors(target, search_circle_utm, nspd.search_in_contour, crs_4326_to_utm,
-                                                crs_utm_to_4326)
+                                                crs_utm_to_4326, area_limit)
+        print(f"Cоседей: {len(processed_neighbors)}")
+        print([x["short_id"] for x in processed_neighbors])
+
+        print("Генерация текстового отчета...")
+        generate_report(target, processed_neighbors)
 
         # 2. Оборачиваем вызов отрисовки в условный блок
         if draw_plot_flag:
@@ -42,9 +47,6 @@ def main(kad_id, radius_meters, draw_plot_flag):
             plot_features(target, processed_neighbors, search_circle_utm, radius_meters)
         else:
             print("Этап визуализации пропущен согласно настройкам в config.ini.")
-
-        print("Генерация текстового отчета...")
-        generate_report(target, processed_neighbors)
 
     print("Анализ успешно завершен!")
 
@@ -71,6 +73,8 @@ if __name__ == "__main__":
         # 3. Читаем булевый флаг с помощью getboolean()
         should_draw_plot = config.getboolean('Settings', 'draw_plot')
 
+        area_limit = config.getint('Settings', 'area_limit')
+
     except FileNotFoundError:
         print("Ошибка: Файл конфигурации 'config.ini' не найден!")
         exit()
@@ -85,4 +89,6 @@ if __name__ == "__main__":
         exit()
 
     # 4. Передаем новый флаг в main
-    main(kad_to_process, radius_to_process, should_draw_plot)
+    main(kad_to_process, radius_to_process, should_draw_plot, area_limit)
+
+    # input("\nНажмите Enter для выхода...")
