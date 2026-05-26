@@ -1,3 +1,6 @@
+# target_permission = nspd.tab_permission_type(target_feat)
+
+
 def generate_report(target_feat, neighbors):
     return
     # Формирование текстового отчета

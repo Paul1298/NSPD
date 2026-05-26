@@ -2,26 +2,37 @@ import math
 
 import geopandas as gpd
 import shapely
-import shapely.plotting
+
 from pynspd import NspdFeature
 from pyproj import Transformer, CRS
 from shapely import Polygon
 from shapely.ops import transform, nearest_points
 
+import math
+from shapely.geometry import Polygon, Point
 
-def get_direction(target_poly, neighbor_poly, search_circle_utm):
+
+def get_sectors(search_circle_utm: Polygon) -> dict[str, Polygon]:
     """
-    Определяет направления между полигонами с учетом секторов
+    Создает словарь с полигонами-секторами, вырезанными из круга поиска.
 
     Args:
-        target_poly (Polygon): Целевой полигон
-        neighbor_poly (Polygon): Полигон соседа
-        search_circle_utm (Polygon): Круг поиска в UTM
+        search_circle_utm (Polygon): Круг поиска в UTM (созданный через buffer).
 
     Returns:
-        str: Направления света
+        dict[str, Polygon]: Словарь, где ключ - название направления,
+                            а значение - полигон соответствующего сектора.
     """
-    # Базовые направления
+    # directions = [
+    #     ("с восточной стороны", 337.5, 22.5),
+    #     ("с северо-восточной стороны", 22.5, 67.5),
+    #     ("с северной стороны", 67.5, 112.5),
+    #     ("с северо-западной стороны", 112.5, 157.5),
+    #     ("с западной стороны", 157.5, 202.5),
+    #     ("с юго-западной стороны", 202.5, 247.5),
+    #     ("с южной стороны", 247.5, 292.5),
+    #     ("с юго-восточной стороны", 292.5, 337.5)
+    # ]
     directions = [
         ("с северной стороны", 67.5, 112.5),  # Сектор вокруг 90 градусов
         ("с северо-восточной стороны", 22.5, 67.5),  # Сектор вокруг 45 градусов
@@ -33,58 +44,59 @@ def get_direction(target_poly, neighbor_poly, search_circle_utm):
         ("с северо-западной стороны", 112.5, 157.5),  # Сектор вокруг 135 градусов
     ]
 
-    # Центр круга поиска
+    sectors = {}
     search_center = search_circle_utm.centroid
-    radius = search_circle_utm.exterior.distance(search_center)
+    # Создаем "нож", который заведомо больше круга
+    large_radius = search_circle_utm.exterior.distance(search_center) * 2
 
+    for direction_name, start_deg, end_deg in directions:
+        start_rad = math.radians(start_deg)
+        end_rad = math.radians(end_deg)
+
+        # Конечные точки лучей "ножа"
+        p1 = (search_center.x + large_radius * math.cos(start_rad),
+              search_center.y + large_radius * math.sin(start_rad))
+        p2 = (search_center.x + large_radius * math.cos(end_rad),
+              search_center.y + large_radius * math.sin(end_rad))
+
+        cutter_wedge = Polygon([(search_center.x, search_center.y), p1, p2])
+
+        # Обработка сектора, пересекающего 0/360 градусов ("Восток")
+        if start_deg > end_deg:
+            p_360 = (search_center.x + large_radius, search_center.y)
+            cutter1 = Polygon([(search_center.x, search_center.y), p1, p_360])
+            cutter2 = Polygon([(search_center.x, search_center.y), p_360, p2])
+            cutter_wedge = cutter1.union(cutter2)
+
+        # Вырезаем сектор и сохраняем в словарь
+        sector_poly = search_circle_utm.intersection(cutter_wedge)
+        sectors[direction_name] = sector_poly
+
+    return sectors
+
+
+def get_direction(neighbor_poly: Polygon, sectors: dict[str, Polygon]) -> str:
+    """
+    Определяет, с какими из готовых секторов пересекается полигон соседа.
+
+    Args:
+        neighbor_poly (Polygon): Полигон соседа.
+        sectors (dict[str, Polygon]): Словарь с полигонами секторов.
+
+    Returns:
+        str: Строка с перечислением направлений через запятую.
+    """
     detected_directions = []
-
-    for direction_name, start, end in directions:
-        # Вычисляем точки сектора
-        start_rad, end_rad = math.radians(start), math.radians(end)
-
-        x1 = search_center.x + radius * math.cos(start_rad)
-        y1 = search_center.y + radius * math.sin(start_rad)
-        x2 = search_center.x + radius * math.cos(end_rad)
-        y2 = search_center.y + radius * math.sin(end_rad)
-
-        # Создаем полигон сектора
-        sector_poly = Polygon([
-            (search_center.x, search_center.y),
-            (x1, y1),
-            (x2, y2)
-        ])
-
-        # Проверяем пересечение центроидов
+    for direction_name, sector_poly in sectors.items():
         if sector_poly.intersects(neighbor_poly):
             detected_directions.append(direction_name)
 
-    # Возвращаем список направлений или дефолтное
     return ', '.join(detected_directions) if detected_directions else "не опознан"
 
 
-def get_distance_direction(target_feat: NspdFeature, neighbor_feat: NspdFeature, search_circle_utm: Polygon):
-    target_feat_4326 = target_feat.geometry.to_shape()
-
-    gdf = gpd.GeoDataFrame(
-        {'id': [1], 'geometry': [target_feat_4326]},
-        crs='EPSG:4326'
-    )
-    UTM_CRS = gdf.estimate_utm_crs()
-
-    crs_4326_to_utm = Transformer.from_crs(CRS("EPSG:4326"), UTM_CRS, always_xy=True).transform
-    # переводим в метры
-    target_feat_utm = transform(crs_4326_to_utm, target_feat_4326)
-
-    neighbor_feat_4326 = neighbor_feat.geometry.to_shape()
-    neighbor_feat_utm = transform(crs_4326_to_utm, neighbor_feat_4326)
-    shapely.plotting.plot_polygon(neighbor_feat_utm, add_points=False)
-
-    # Находим ближайшие точки
-    nearest_pts = nearest_points(target_feat_utm, neighbor_feat_utm)
-    # Вычисляем расстояние между ближайшими точками
-    distance = int(nearest_pts[0].distance(nearest_pts[1]))  # todo rounding to int - maybe replace with ceil
-
-    direction = get_direction(target_feat_utm, neighbor_feat_utm, search_circle_utm)  # todo replace with sectors
+def get_distance_direction(target_feat_utm, neighbor_feat_utm, search_circle_utm: Polygon):
+    distance = int(
+        shapely.distance(target_feat_utm, neighbor_feat_utm))  # todo rounding to int - maybe replace with ceil
+    direction = get_direction(neighbor_feat_utm, get_sectors(search_circle_utm))
 
     return distance, direction

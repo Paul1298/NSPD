@@ -2,12 +2,14 @@ import math
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import shapely
 from pyproj import Transformer, CRS
 from shapely import Polygon
 from shapely.geometry import Point
+import shapely.plotting
 from shapely.ops import transform
 
-from geo_processor import get_distance_direction
+from geo_processor import get_distance_direction, get_sectors
 
 
 def plot_sectors(ax, center, radius, color_map=None):
@@ -60,7 +62,7 @@ def plot_sectors(ax, center, radius, color_map=None):
         ax.fill(x, y, color=color, alpha=0.1)
 
 
-def plot_features(target_feat, neighbor_feats, search_circle, radius_meters):
+def plot_features(target, neighbors, search_circle_utm, radius_meters):
     plt.figure(figsize=(15, 10))
 
     directions = [
@@ -75,43 +77,42 @@ def plot_features(target_feat, neighbor_feats, search_circle, radius_meters):
     ]
     color_map = {direction: plt.cm.tab10(i) for i, direction in enumerate(directions)}
 
-    gdf = gpd.GeoDataFrame(
-        {'id': [1], 'geometry': [target_feat.geometry.to_shape()]},
-        crs='EPSG:4326'
-    )
-    UTM_CRS = gdf.estimate_utm_crs()
-
-    crs_4326_to_utm = Transformer.from_crs(CRS("EPSG:4326"), UTM_CRS, always_xy=True).transform
-
-    # Отрисовка области поиска
-    search_circle_utm = transform(crs_4326_to_utm, search_circle)
-    plt.fill(*search_circle_utm.exterior.xy, color='gray', alpha=0.1, label='Область поиска')
-    plt.plot(*search_circle_utm.exterior.xy, color='gray', linestyle='--', linewidth=1)
+    # gdf = gpd.GeoDataFrame(
+    #     {'id': [1], 'geometry': [target_feat.geometry.to_shape()]},
+    #     crs='EPSG:4326'
+    # )
+    # UTM_CRS = gdf.estimate_utm_crs()
+    #
+    # crs_4326_to_utm = Transformer.from_crs(CRS("EPSG:4326"), UTM_CRS, always_xy=True).transform
+    #
+    # # Отрисовка области поиска
+    # search_circle_utm = transform(crs_4326_to_utm, search_circle)
+    # plt.fill(*search_circle_utm.exterior.xy, color='gray', alpha=0.1, label='Область поиска')
+    # plt.plot(*search_circle_utm.exterior.xy, color='gray', linestyle='--', linewidth=1)
 
     # Отрисовка секторов
-    search_circle_center = search_circle_utm.centroid
-    plot_sectors(
-        plt.gca(),
-        search_circle_center,
-        search_circle_utm.exterior.distance(search_circle_center),
-        color_map
-    )
+    sectors = get_sectors(search_circle_utm)
+
+    # 2. Отрисовка секторов (заменяет старую функцию plot_sectors)
+    for direction_name, sector_poly in sectors.items():
+        color = color_map.get(direction_name, 'lightgray')
+        x, y = sector_poly.exterior.xy
+        plt.fill(x, y, color=color, alpha=0.15)
 
     # Отрисовка целевого участка
-    target_feat_utm = transform(crs_4326_to_utm, target_feat.geometry.to_shape())
 
-    plt.fill(*target_feat_utm.exterior.xy, color='red', alpha=0.5, label='Целевой участок')
+    plt.fill(*target["utm"].exterior.xy, color='red', alpha=0.5, label=f'{target["short_id"]} Целевой участок')
+    # Добавляем подпись кадастрового номера для соседних участков
+    plt.text(target["utm"].centroid.x, target["utm"].centroid.y,
+             target["short_id"],
+             fontsize=8, ha='center', va='center')
     # plt.plot(*target_feat_utm.exterior.xy, color='red', marker='o', markersize=2, linestyle='-')
 
     # Отрисовка соседних участков
-    for neighbor_feat in neighbor_feats:
-        if neighbor_feat.properties.options.cad_num == target_feat.properties.options.cad_num:
-            continue
+    for neighbor in neighbors:
+        shapely.plotting.plot_polygon(neighbor["utm"], add_points=False)
 
-        dist, direction = get_distance_direction(target_feat, neighbor_feat, search_circle_utm)
-
-        neighbor_feat_utm = transform(crs_4326_to_utm, neighbor_feat.geometry.to_shape())
-
+        direction = neighbor["direction"]
         color = color_map.get(direction.split(',')[0], 'gray')
 
         if len(direction.split(',')) > 1:
@@ -120,18 +121,18 @@ def plot_features(target_feat, neighbor_feats, search_circle, radius_meters):
             directions_str = direction
 
         try:
-            plt.fill(*neighbor_feat_utm.exterior.xy, color=color, alpha=0.5,
-                     label=f'{neighbor_feat.properties.options.cad_num[6:]} ({directions_str})')
+            plt.fill(*neighbor["utm"].exterior.xy, color=color, alpha=0.5,
+                     label=f'{neighbor["short_id"]} ({directions_str})')
         except:
             pass
         # plt.plot(*neighbor_feat_utm.exterior.xy, color=color, marker='o', markersize=2, linestyle='-')
 
         # Добавляем подпись кадастрового номера для соседних участков
-        plt.text(neighbor_feat_utm.centroid.x, neighbor_feat_utm.centroid.y,
-                 neighbor_feat.properties.options.cad_num[6:],
+        plt.text(neighbor["utm"].centroid.x, neighbor["utm"].centroid.y,
+                 neighbor["short_id"],
                  fontsize=8, ha='center', va='center')
 
-    target_center = target_feat_utm.centroid
+    target_center = target["utm"].centroid
     # plt.tight_layout()
     # Устанавливаем границы области отображения
     coef = 1
@@ -150,6 +151,6 @@ def plot_features(target_feat, neighbor_feats, search_circle, radius_meters):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.subplots_adjust(right=0.75)
 
-    plt.tight_layout()
+    # plt.tight_layout()
     # plt.axis('equal')  # Сохраняем пропорции
     plt.show()
