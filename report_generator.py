@@ -1,5 +1,23 @@
 import datetime
 
+def format_direction_string(full_direction_str: str) -> str:
+    """
+    Преобразует строку вида "с южной стороны, с юго-западной стороны"
+    в "с южной, юго-западной сторон".
+    Если направление одно, оставляет его без изменений ("с южной стороны").
+    """
+    # Разделяем строку на отдельные направления
+    parts = full_direction_str.split(', ')
+
+    # Если направление всего одно, ничего не меняем
+    if len(parts) <= 1:
+        return full_direction_str
+
+    # Извлекаем "ядро" каждого направления (без "с " и " стороны")
+    cores = [p.removeprefix("с ").removesuffix(" стороны") for p in parts]
+
+    # Собираем новую строку: "с" + "ядра через запятую" + "сторон"
+    return f"с {', '.join(cores)} сторон"
 
 def generate_report(target, aoi_neighbors) -> str:
     """
@@ -38,7 +56,7 @@ def generate_report(target, aoi_neighbors) -> str:
         f"Объект ОНВ расположен по адресу: {target_address}, кадастровый номер земельного участка: {target_kad_id},"
         f" разрешенное использование: {target_permission}, и окружен:"
     )
-    report_lines.append("")
+    # report_lines.append("")
 
     # --- 3. Основная логика с группировкой ---
     processed_neighbor_ids = set()
@@ -79,18 +97,19 @@ def generate_report(target, aoi_neighbors) -> str:
 
                 permission_str = neighbor['permission'][0] if neighbor['permission'] else "[не указано]"
 
+                full_direction_str = format_direction_string(full_direction_str)
                 if i == 0:
                     # Первая строка в группе получает полный заголовок
                     line = (
-                        f"{full_direction_str} – {distance_str} расположен ЗУ с КН {neighbor['kad_id']},"
+                        f"\n{full_direction_str} – {distance_str} расположен ЗУ с КН {neighbor['kad_id']},"
                         f" разрешенное использование – {permission_str}."
                     )
                 else:
                     # Последующие строки получают отступ вместо заголовка
                     # Это создает визуальный блок, как в эталоне
-                    indent = " " * len(full_direction_str)
+                    # indent = " " * len(full_direction_str)
                     line = (
-                        f"{indent} – {distance_str} расположен ЗУ с КН {neighbor['kad_id']},"
+                        f"– {distance_str} расположен ЗУ с КН {neighbor['kad_id']},"
                         f" разрешенное использование – {permission_str}."
                     )
 
