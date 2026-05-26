@@ -17,6 +17,7 @@ def process_target(target_feat: NspdFeature):
             "kad_id": target_feat.properties.options.cad_num,
             "short_id": ':'.join(target_feat.properties.options.cad_num.split(':')[2:]),
             "permission": nspd.tab_permission_type(target_feat),
+            "address": target_feat.properties.options.readable_address,
             "4326": target_feat.geometry.to_shape(),
         }
 
