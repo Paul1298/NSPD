@@ -1,9 +1,21 @@
 import configparser
+import os
+import sys
+
 from pynspd import Nspd
 from data_provider import search_area, process_target, process_neighbors
 from plotting import plot_features
 from report_generator import generate_report
 
+
+def get_base_path():
+    """ Возвращает путь к папке с .exe файлом или скриптом. """
+    if getattr(sys, 'frozen', False):
+        # Если запущено как скомпилированный .exe
+        return os.path.dirname(sys.executable)
+    else:
+        # Если запущено как обычный .py скрипт
+        return os.path.dirname(os.path.abspath(__file__))
 
 # 1. Добавляем новый аргумент в функцию main
 def main(kad_id, radius_meters, draw_plot_flag):
@@ -38,6 +50,16 @@ def main(kad_id, radius_meters, draw_plot_flag):
 
 
 if __name__ == "__main__":
+    # base_path = get_base_path()
+    # config_path = os.path.join(base_path, 'config.ini')  # <-- Правильный путь к конфигу
+    #
+    # config = configparser.ConfigParser()
+    #
+    # # Пытаемся прочитать файл по абсолютному пути
+    # if not config.read(config_path, encoding='utf-8'):  # config.read возвращает список прочитанных файлов
+    #     print(f"Ошибка: Файл конфигурации '{config_path}' не найден!")
+    #     input("Нажмите Enter для выхода...")  # <-- см. Нюанс №4
+    #     exit()
     config = configparser.ConfigParser()
 
     try:

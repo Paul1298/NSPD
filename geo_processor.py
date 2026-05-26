@@ -1,15 +1,7 @@
 import math
 
-import geopandas as gpd
 import shapely
-
-from pynspd import NspdFeature
-from pyproj import Transformer, CRS
-from shapely import Polygon
-from shapely.ops import transform, nearest_points
-
-import math
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Polygon
 
 
 def get_sectors(search_circle_utm: Polygon) -> dict[str, Polygon]:

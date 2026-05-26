@@ -1,15 +1,12 @@
 import math
 
-import geopandas as gpd
 import matplotlib.pyplot as plt
 import shapely
-from pyproj import Transformer, CRS
+import shapely.plotting
 from shapely import Polygon
 from shapely.geometry import Point
-import shapely.plotting
-from shapely.ops import transform
 
-from geo_processor import get_distance_direction, get_sectors
+from geo_processor import get_sectors
 
 
 def plot_sectors(ax, center, radius, color_map=None):

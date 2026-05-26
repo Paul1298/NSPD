@@ -1,5 +1,6 @@
 import datetime
 
+
 def format_direction_string(full_direction_str: str) -> str:
     """
     Преобразует строку вида "с южной стороны, с юго-западной стороны"
@@ -18,6 +19,7 @@ def format_direction_string(full_direction_str: str) -> str:
 
     # Собираем новую строку: "с" + "ядра через запятую" + "сторон"
     return f"с {', '.join(cores)} сторон"
+
 
 def generate_report(target, aoi_neighbors) -> str:
     """

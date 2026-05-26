@@ -8,6 +8,7 @@ from shapely.ops import transform
 
 from geo_processor import get_distance_direction
 
+
 # class DataProvider: todo
 
 def process_target(target_feat: NspdFeature):
@@ -20,7 +21,6 @@ def process_target(target_feat: NspdFeature):
             "address": target_feat.properties.options.readable_address,
             "4326": target_feat.geometry.to_shape(),
         }
-
 
     gdf = gpd.GeoDataFrame(
         {'id': [1], 'geometry': [target["4326"]]},
@@ -53,6 +53,7 @@ def search_area(target: dict, radius_meters=100) -> Polygon:
     )
 
     return circle_polygon_utm
+
 
 def process_neighbors(target, search_circle_utm, nspd_func, crs_4326_to_utm, crs_utm_to_4326):
     neighbor_feats = nspd_func(
