@@ -88,7 +88,7 @@ def get_direction(neighbor_poly: Polygon, sectors: dict[str, Polygon]) -> str:
 
 def get_distance_direction(target_feat_utm, neighbor_feat_utm, search_circle_utm: Polygon):
     distance = int(
-        shapely.distance(target_feat_utm, neighbor_feat_utm))  # todo rounding to int - maybe replace with ceil
+        shapely.distance(target_feat_utm, neighbor_feat_utm))
     direction = get_direction(neighbor_feat_utm, get_sectors(search_circle_utm))
 
     return distance, direction

@@ -35,11 +35,11 @@ def main(kad_id, radius_meters = 100, draw_plot_flag = False, area_limit = 2):
         # 4. Поиск соседних участков
         processed_neighbors = process_neighbors(target, search_circle_utm, nspd.search_in_contour, crs_4326_to_utm,
                                                 crs_utm_to_4326, area_limit)
-        print(f"Cоседей: {len(processed_neighbors)}")
-        print([x["short_id"] for x in processed_neighbors])
+        print(f"взяли Cоседей: {len(processed_neighbors)}")
+        # print([x["short_id"] for x in processed_neighbors])
 
         print("Генерация текстового отчета...")
-        generate_report(target, processed_neighbors)
+        # generate_report(target, processed_neighbors)
 
         # 2. Оборачиваем вызов отрисовки в условный блок
         if draw_plot_flag:

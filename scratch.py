@@ -9,6 +9,15 @@ contour = from_wkt(
 
 with Nspd() as nspd:
     feat = nspd.find("86:14:0101002:715")
+    print(feat.properties.model_dump().keys())
+    print(feat.properties.options.model_dump().keys())
+    print(feat.properties.options.specified_area)
+    print(feat.properties.options.area)
+    print(feat.properties.options.declared_area)
+    print(feat.properties.options.land_record_area)
+    print(feat.properties.cast().options.model_dump_human_readable().keys())
+
+exit(0)
 
 init = feat.geometry.to_shape()
 print("init", feat.geometry.to_shape())

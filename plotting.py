@@ -85,7 +85,7 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters):
 
     # Отрисовка целевого участка
 
-    plt.fill(*target["utm"].exterior.xy, color='red', alpha=0.5, label=f'{target["short_id"]} Целевой участок')
+    plt.fill(*target["utm"].exterior.xy, color='red', alpha=0.3, label=f'{target["short_id"]} Целевой участок')
     # Добавляем подпись кадастрового номера для соседних участков
     plt.text(target["utm"].centroid.x, target["utm"].centroid.y,
              target["short_id"],
@@ -112,9 +112,9 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters):
         # plt.plot(*neighbor_feat_utm.exterior.xy, color=color, marker='o', markersize=2, linestyle='-')
 
         # Добавляем подпись кадастрового номера для соседних участков
-        plt.text(neighbor["utm"].centroid.x, neighbor["utm"].centroid.y,
-                 neighbor["short_id"],
-                 fontsize=8, ha='center', va='center')
+        # plt.text(neighbor["utm"].centroid.x, neighbor["utm"].centroid.y,
+        #          neighbor["short_id"],
+        #          fontsize=8, ha='center', va='center')
 
     target_center = target["utm"].centroid
     # plt.tight_layout()
@@ -132,7 +132,7 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters):
     plt.title('Участки и их взаиморасположение')
     plt.xlabel('Координата X')
     plt.ylabel('Координата Y')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    # plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.subplots_adjust(right=0.75)
 
     # plt.tight_layout()
