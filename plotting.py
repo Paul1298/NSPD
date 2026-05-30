@@ -1,5 +1,7 @@
 import math
 
+import matplotlib
+matplotlib.use('TkAgg') # Явное указание бэкенда
 import matplotlib.pyplot as plt
 import shapely
 import shapely.plotting
@@ -59,7 +61,7 @@ def plot_sectors(ax, center, radius, color_map=None):
         ax.fill(x, y, color=color, alpha=0.1)
 
 
-def plot_features(target, neighbors, search_circle_utm, radius_meters):
+def plot_features(target, neighbors, search_circle_utm, radius_meters, should_draw_kad):
     plt.figure(figsize=(15, 10))
 
     directions = [
@@ -111,10 +113,11 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters):
             pass
         # plt.plot(*neighbor_feat_utm.exterior.xy, color=color, marker='o', markersize=2, linestyle='-')
 
-        # Добавляем подпись кадастрового номера для соседних участков
-        # plt.text(neighbor["utm"].centroid.x, neighbor["utm"].centroid.y,
-        #          neighbor["short_id"],
-        #          fontsize=8, ha='center', va='center')
+        if should_draw_kad:
+            # Добавляем подпись кадастрового номера для соседних участков
+            plt.text(neighbor["utm"].centroid.x, neighbor["utm"].centroid.y,
+                     neighbor["short_id"],
+                     fontsize=8, ha='center', va='center')
 
     target_center = target["utm"].centroid
     # plt.tight_layout()
@@ -132,9 +135,10 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters):
     plt.title('Участки и их взаиморасположение')
     plt.xlabel('Координата X')
     plt.ylabel('Координата Y')
-    # plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.subplots_adjust(right=0.75)
 
     # plt.tight_layout()
     # plt.axis('equal')  # Сохраняем пропорции
+
     plt.show()

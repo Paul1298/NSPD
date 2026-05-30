@@ -18,7 +18,9 @@ def get_base_path():
         return os.path.dirname(os.path.abspath(__file__))
 
 # 1. Добавляем новый аргумент в функцию main
-def main(kad_id, radius_meters = 100, draw_plot_flag = False, area_limit = 2):
+def main(kad_id, radius_meters = 100, draw_plot_flag = False, should_draw_kad = False, area_limit = 2, coordinates=None):
+    if coordinates is None:
+        coordinates = []
     print(f"Запускаем анализ для участка {kad_id} с радиусом {radius_meters} м...")
 
     with Nspd() as nspd:
@@ -48,7 +50,7 @@ def main(kad_id, radius_meters = 100, draw_plot_flag = False, area_limit = 2):
         # 2. Оборачиваем вызов отрисовки в условный блок
         if draw_plot_flag:
             print("Подготовка и отображение графика...")
-            plot_features(target, processed_neighbors, search_circle_utm, radius_meters)
+            plot_features(target, processed_neighbors, search_circle_utm, radius_meters, should_draw_kad)
         else:
             print("Этап визуализации пропущен согласно настройкам в config.ini.")
 
@@ -76,6 +78,7 @@ if __name__ == "__main__":
 
         # 3. Читаем булевый флаг с помощью getboolean()
         should_draw_plot = config.getboolean('Settings', 'draw_plot')
+        should_draw_kad = config.getboolean('Settings', 'draw_kad')
 
         area_limit = config.getint('Settings', 'area_limit')
 
@@ -104,6 +107,6 @@ if __name__ == "__main__":
         exit()
 
     # 4. Передаем новый флаг в main
-    main(kad_to_process, radius_to_process, should_draw_plot, area_limit, coordinates)
+    main(kad_to_process, radius_to_process, should_draw_plot, should_draw_kad, area_limit, coordinates)
 
     # input("\nНажмите Enter для выхода...")
