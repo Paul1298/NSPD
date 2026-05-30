@@ -97,7 +97,7 @@ def generate_report(target, aoi_neighbors) -> str:
                 if neighbor['distance'] < 1.0:
                     distance_str = "вплотную к объекту ОНВ"
 
-                permission_str = neighbor['permission'][0] if neighbor['permission'] else "[не указано]"
+                permission_str = neighbor['permission'][0] if neighbor.get('permission') else "[не указано]"
 
                 full_direction_str = format_direction_string(full_direction_str)
                 if i == 0:

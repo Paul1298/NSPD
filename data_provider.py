@@ -11,7 +11,7 @@ from geo_processor import get_distance_direction
 
 # class DataProvider: todo
 
-def process_target(target_feat: NspdFeature):
+def process_target(target_feat: NspdFeature, coordinates):
     with Nspd() as nspd:
         target = {
             "feat": target_feat,
@@ -22,12 +22,16 @@ def process_target(target_feat: NspdFeature):
             "4326": target_feat.geometry.to_shape(),
         }
 
+    if coordinates:
+        target["4326"] = Polygon(coordinates)
+
     gdf = gpd.GeoDataFrame(
         {'id': [1], 'geometry': [target["4326"]]},
         crs='EPSG:4326'
     )
 
     UTM_CRS = gdf.estimate_utm_crs()
+    print("utm", UTM_CRS)
 
     crs_4326_to_utm = Transformer.from_crs(CRS("EPSG:4326"), UTM_CRS, always_xy=True).transform
     crs_4326_to_utm = partial(transform, crs_4326_to_utm)
@@ -46,7 +50,7 @@ def search_area(target: dict, radius_meters=100) -> Polygon:
     :param radius_meters:
     :return:
     """
-
+    print("центр круга: ", target["4326"].centroid)
     circle_polygon_utm = target["utm"].centroid.buffer(
         distance=radius_meters,
         quad_segs=32,
@@ -110,7 +114,11 @@ def process_neighbors(
         NspdFeature.by_title("Земельные участки из ЕГРН"),
     )
 
-    # cns = [i.properties.options.cad_num for i in neighbor_feats]
+    if not neighbor_feats:
+        return []
+    cns = [i.properties.options.cad_num for i in neighbor_feats]
+    print("всего соседей",len(cns))
+    # return
 
     # 5. Обработка найденных участков
     processed_neighbors = []

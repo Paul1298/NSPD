@@ -27,10 +27,14 @@ def main(kad_id, radius_meters = 100, draw_plot_flag = False, area_limit = 2):
             print(f"Ошибка: Участок с кадастровым номером {kad_id} не найден.")
             return
 
-        target, crs_4326_to_utm, crs_utm_to_4326 = process_target(target_feat)
+        target, crs_4326_to_utm, crs_utm_to_4326 = process_target(target_feat, coordinates)
+        # a = nspd.search_in_contour(target["4326"], NspdFeature.by_title("Земельные участки из ЕГРН"))
+        # cns = [i.properties.options.cad_num for i in a]
+        # print("должен быть 1: ", cns)
 
         # 3. Создание области поиска
         search_circle_utm = search_area(target, radius_meters)
+        # print(search_circle_utm)
 
         # 4. Поиск соседних участков
         processed_neighbors = process_neighbors(target, search_circle_utm, nspd.search_in_contour, crs_4326_to_utm,
@@ -39,7 +43,7 @@ def main(kad_id, radius_meters = 100, draw_plot_flag = False, area_limit = 2):
         # print([x["short_id"] for x in processed_neighbors])
 
         print("Генерация текстового отчета...")
-        # generate_report(target, processed_neighbors)
+        generate_report(target, processed_neighbors)
 
         # 2. Оборачиваем вызов отрисовки в условный блок
         if draw_plot_flag:
@@ -75,6 +79,17 @@ if __name__ == "__main__":
 
         area_limit = config.getint('Settings', 'area_limit')
 
+        coordinates = []
+        i = 0
+        while f'point_{i}' in config['coordinates']:
+            point_str = config['coordinates'][f'point_{i}']
+            lat_str, lon_str = point_str.split(',')
+            lat = float(lat_str)
+            lon = float(lon_str)
+            # coordinates.append((lat, lon))
+            coordinates.append((lon, lat))
+            i += 1
+
     except FileNotFoundError:
         print("Ошибка: Файл конфигурации 'config.ini' не найден!")
         exit()
@@ -89,6 +104,6 @@ if __name__ == "__main__":
         exit()
 
     # 4. Передаем новый флаг в main
-    main(kad_to_process, radius_to_process, should_draw_plot, area_limit)
+    main(kad_to_process, radius_to_process, should_draw_plot, area_limit, coordinates)
 
     # input("\nНажмите Enter для выхода...")
