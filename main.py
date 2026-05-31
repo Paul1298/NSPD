@@ -3,9 +3,9 @@ import os
 import sys
 
 from pynspd import Nspd
+
 from data_provider import search_area, process_target, process_neighbors
 from plotting import plot_features
-from report_generator import generate_report
 
 
 def get_base_path():
@@ -17,8 +17,17 @@ def get_base_path():
         # Если запущено как обычный .py скрипт
         return os.path.dirname(os.path.abspath(__file__))
 
+
 # 1. Добавляем новый аргумент в функцию main
-def main(kad_id, radius_meters = 100, draw_plot_flag = False, should_draw_kad = False, area_limit = 2, coordinates=None):
+def main(
+        kad_id,
+        radius_meters=100,
+        draw_plot_flag=False,
+        should_draw_kad=False,
+        area_limit=2,
+        coordinates=None,
+        min_intersection_percent=5,
+):
     if coordinates is None:
         coordinates = []
     print(f"Запускаем анализ для участка {kad_id} с радиусом {radius_meters} м...")
@@ -39,8 +48,15 @@ def main(kad_id, radius_meters = 100, draw_plot_flag = False, should_draw_kad = 
         # print(search_circle_utm)
 
         # 4. Поиск соседних участков
-        processed_neighbors = process_neighbors(target, search_circle_utm, nspd.search_in_contour, crs_4326_to_utm,
-                                                crs_utm_to_4326, area_limit)
+        processed_neighbors = process_neighbors(
+            target,
+            search_circle_utm,
+            nspd.search_in_contour,
+            crs_4326_to_utm,
+            crs_utm_to_4326,
+            area_limit,
+            min_intersection_percent,
+        )
         print(f"взяли Cоседей: {len(processed_neighbors)}")
         # print([x["short_id"] for x in processed_neighbors])
 
@@ -92,6 +108,8 @@ if __name__ == "__main__":
             # coordinates.append((lat, lon))
             coordinates.append((lon, lat))
             i += 1
+
+        min_intersection_percent = config.getint('Settings', 'min_intersection_percent')
 
     except FileNotFoundError:
         print("Ошибка: Файл конфигурации 'config.ini' не найден!")

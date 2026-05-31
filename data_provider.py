@@ -107,7 +107,8 @@ def process_neighbors(
         nspd_func,
         crs_4326_to_utm,
         crs_utm_to_4326,
-        area_limit=2
+        area_limit=2,
+        min_intersection_percent=5
 ):
     neighbor_feats = nspd_func(
         crs_utm_to_4326(search_circle_utm),
@@ -117,7 +118,7 @@ def process_neighbors(
     if not neighbor_feats:
         return []
     cns = [i.properties.options.cad_num for i in neighbor_feats]
-    print("всего соседей",len(cns))
+    print("всего соседей", len(cns))
     # return
 
     # 5. Обработка найденных участков
@@ -139,7 +140,12 @@ def process_neighbors(
                 "utm": crs_4326_to_utm(neighbor_feat.geometry.to_shape()),
             }
 
-        distance, direction = get_distance_direction(target["utm"], neighbor["utm"], search_circle_utm)
+        distance, direction = get_distance_direction(
+            target["utm"],
+            neighbor["utm"],
+            search_circle_utm,
+            min_intersection_percent,
+        )
         neighbor["distance"] = distance
         neighbor["direction"] = direction
 

@@ -67,28 +67,51 @@ def get_sectors(search_circle_utm: Polygon) -> dict[str, Polygon]:
     return sectors
 
 
-def get_direction(neighbor_poly: Polygon, sectors: dict[str, Polygon]) -> str:
+def get_direction(
+        neighbor_poly: Polygon,
+        search_circle_utm: Polygon,
+        sectors: dict[str, Polygon],
+        min_intersection_percent: int = 5,
+) -> str:
     """
     Определяет, с какими из готовых секторов пересекается полигон соседа.
 
     Args:
-        neighbor_poly (Polygon): Полигон соседа.
-        sectors (dict[str, Polygon]): Словарь с полигонами секторов.
+        :param neighbor_poly: Полигон соседа.
+        :param search_circle_utm:
+        :param sectors: (dict[str, Polygon]): Словарь с полигонами секторов.
+        :param min_intersection_percent:
 
     Returns:
         str: Строка с перечислением направлений через запятую.
     """
     detected_directions = []
+    neighbor_area = neighbor_poly.intersection(search_circle_utm).area
+
     for direction_name, sector_poly in sectors.items():
         if sector_poly.intersects(neighbor_poly):
-            detected_directions.append(direction_name)
+            intersection_area = sector_poly.intersection(neighbor_poly).area
+            intersection_percent = (intersection_area / neighbor_area) * 100
 
-    return ', '.join(detected_directions) if detected_directions else "не опознан"
+            if intersection_percent >= float(min_intersection_percent):
+                detected_directions.append(direction_name)
+
+    return ', '.join(detected_directions) if detected_directions else "не опознано"
 
 
-def get_distance_direction(target_feat_utm, neighbor_feat_utm, search_circle_utm: Polygon):
+def get_distance_direction(
+        target_feat_utm,
+        neighbor_feat_utm,
+        search_circle_utm: Polygon,
+        min_intersection_percent,
+):
     distance = int(
         shapely.distance(target_feat_utm, neighbor_feat_utm))
-    direction = get_direction(neighbor_feat_utm, get_sectors(search_circle_utm))
+    direction = get_direction(
+        neighbor_feat_utm,
+        search_circle_utm,
+        get_sectors(search_circle_utm),
+        min_intersection_percent,
+    )
 
     return distance, direction
