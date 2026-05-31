@@ -6,6 +6,7 @@ from pynspd import Nspd
 
 from data_provider import search_area, process_target, process_neighbors
 from plotting import plot_features
+from report_generator import generate_report
 
 
 def get_base_path():
@@ -125,6 +126,14 @@ if __name__ == "__main__":
         exit()
 
     # 4. Передаем новый флаг в main
-    main(kad_to_process, radius_to_process, should_draw_plot, should_draw_kad, area_limit, coordinates)
+    main(
+        kad_to_process,
+        radius_to_process,
+        should_draw_plot,
+        should_draw_kad,
+        area_limit,
+        coordinates,
+        min_intersection_percent,
+    )
 
     # input("\nНажмите Enter для выхода...")
