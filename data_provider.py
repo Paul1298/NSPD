@@ -51,9 +51,9 @@ def search_area(target: dict, radius_meters=100) -> Polygon:
     :return:
     """
     print("центр круга: ", target["4326"].centroid)
-    circle_polygon_utm = target["utm"].centroid.buffer(
+    circle_polygon_utm = target["utm"].buffer(
         distance=radius_meters,
-        quad_segs=32,
+        # quad_segs=32,
     )
 
     return circle_polygon_utm
@@ -134,7 +134,7 @@ def process_neighbors(
                 "feat": neighbor_feat,
                 'kad_id': neighbor_feat.properties.options.cad_num,
                 "short_id": ':'.join(neighbor_feat.properties.options.cad_num.split(':')[2:]),
-                'permission': nspd.tab_permission_type(neighbor_feat),
+                # 'permission': nspd.tab_permission_type(neighbor_feat),
                 "4326": neighbor_feat.geometry.to_shape(),
                 "utm": crs_4326_to_utm(neighbor_feat.geometry.to_shape()),
             }
