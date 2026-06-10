@@ -123,14 +123,14 @@ def process_neighbors(
 
     # 5. Обработка найденных участков
     processed_neighbors = []
-    for neighbor_feat in neighbor_feats:
-        if neighbor_feat.properties.options.cad_num == target["kad_id"]:
-            continue  # Пропускаем сам целевой участок
+    with Nspd() as nspd:
+        for i, neighbor_feat in enumerate(neighbor_feats):
+            if neighbor_feat.properties.options.cad_num == target["kad_id"]:
+                continue  # Пропускаем сам целевой участок
 
-        if neighbor_feat.properties.options.specified_area and neighbor_feat.properties.options.specified_area < area_limit:
-            continue  # Пропускаем маленькие участки
+            if neighbor_feat.properties.options.specified_area and neighbor_feat.properties.options.specified_area < area_limit:
+                continue  # Пропускаем маленькие участки
 
-        with Nspd() as nspd:
             neighbor = {
                 "feat": neighbor_feat,
                 'kad_id': neighbor_feat.properties.options.cad_num,
@@ -140,16 +140,18 @@ def process_neighbors(
                 "utm": crs_4326_to_utm(neighbor_feat.geometry.to_shape()),
             }
 
-        distance, direction = get_distance_direction(
-            target["utm"],
-            neighbor["utm"],
-            search_circle_utm,
-            min_intersection_percent,
-        )
-        neighbor["distance"] = distance
-        neighbor["direction"] = direction
+            distance, direction = get_distance_direction(
+                target["utm"],
+                neighbor["utm"],
+                search_circle_utm,
+                min_intersection_percent,
+            )
+            neighbor["distance"] = distance
+            neighbor["direction"] = direction
 
-        processed_neighbors.append(neighbor)
+            processed_neighbors.append(neighbor)
+
+            print(f"Обработан сосед: {i}")
     #
     # pprint(processed_neighbors)
     return sort_neighbors_by_direction(processed_neighbors)

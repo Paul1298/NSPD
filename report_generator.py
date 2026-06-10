@@ -35,7 +35,7 @@ def generate_report(target, aoi_neighbors) -> str:
     for neighbor in aoi_neighbors:
         directions = neighbor['direction'].split(', ')
         for direction in directions:
-            if direction == 'не опознан': continue
+            if direction == 'не опознано': continue
             if direction not in neighbors_by_direction:
                 neighbors_by_direction[direction] = []
             neighbors_by_direction[direction].append(neighbor)
@@ -49,16 +49,16 @@ def generate_report(target, aoi_neighbors) -> str:
     report_lines = []
 
     # --- 2. Шапка отчета ---
-    target_kad_id = target["kad_id"]
-    target_permission = target["permission"][0]
-    target_address = target.get("address", "[адрес не указан]")
-
-    report_lines.append("1.4. Краткая характеристика прилегающей к объекту ОНВ местности")
-    report_lines.append(
-        f"Объект ОНВ расположен по адресу: {target_address}, кадастровый номер земельного участка: {target_kad_id},"
-        f" разрешенное использование: {target_permission}, и окружен:"
-    )
-    # report_lines.append("")
+    # target_kad_id = target["kad_id"]
+    # target_permission = target["permission"][0]
+    # target_address = target.get("address", "[адрес не указан]")
+    #
+    # report_lines.append("1.4. Краткая характеристика прилегающей к объекту ОНВ местности")
+    # report_lines.append(
+    #     f"Объект ОНВ расположен по адресу: {target_address}, кадастровый номер земельного участка: {target_kad_id},"
+    #     f" разрешенное использование: {target_permission}, и окружен:"
+    # )
+    # # report_lines.append("")
 
     # --- 3. Основная логика с группировкой ---
     processed_neighbor_ids = set()
@@ -97,7 +97,7 @@ def generate_report(target, aoi_neighbors) -> str:
                 if neighbor['distance'] < 1.0:
                     distance_str = "вплотную к объекту ОНВ"
 
-                permission_str = neighbor['permission'][0] if neighbor.get('permission') else "[не указано]"
+                permission_str = neighbor['permission'][0] if neighbor.get('permission') else "не определено"
 
                 full_direction_str = format_direction_string(full_direction_str)
                 if i == 0:

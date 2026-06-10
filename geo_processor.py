@@ -39,7 +39,7 @@ def get_sectors(search_circle_utm: Polygon) -> dict[str, Polygon]:
     sectors = {}
     search_center = search_circle_utm.centroid
     # Создаем "нож", который заведомо больше круга
-    large_radius = search_circle_utm.exterior.distance(search_center) * 2
+    large_radius = search_circle_utm.exterior.hausdorff_distance(search_center) * 2
 
     for direction_name, start_deg, end_deg in directions:
         start_rad = math.radians(start_deg)

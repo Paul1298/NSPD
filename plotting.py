@@ -62,7 +62,8 @@ def plot_sectors(ax, center, radius, color_map=None):
 
 
 def plot_features(target, neighbors, search_circle_utm, radius_meters, should_draw_kad):
-    plt.figure(figsize=(15, 10))
+    fig = plt.figure(figsize=(15, 10))
+    ax = fig.gca()
 
     directions = [
         "с северной стороны",
@@ -77,22 +78,24 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters, should_dr
     color_map = {direction: plt.cm.tab10(i) for i, direction in enumerate(directions)}
 
     # Отрисовка секторов
+    plt.plot(*search_circle_utm.exterior.xy, color='blue', linewidth=0.5, linestyle='--')
+
     sectors = get_sectors(search_circle_utm)
 
     # 2. Отрисовка секторов (заменяет старую функцию plot_sectors)
     for direction_name, sector_poly in sectors.items():
         color = color_map.get(direction_name, 'lightgray')
         x, y = sector_poly.exterior.xy
-        plt.fill(x, y, color=color, alpha=0.15)
+        plt.fill(x, y, color=color, alpha=0.3)
 
     # Отрисовка целевого участка
 
-    plt.fill(*target["utm"].exterior.xy, color='red', alpha=0.3, label=f'{target["short_id"]} Целевой участок')
+    plt.fill(*target["utm"].exterior.xy, color='blue', alpha=0.4, label=f'{target["short_id"]} Целевой участок')
     # Добавляем подпись кадастрового номера для соседних участков
     plt.text(target["utm"].centroid.x, target["utm"].centroid.y,
              target["short_id"],
              fontsize=8, ha='center', va='center')
-    # plt.plot(*target_feat_utm.exterior.xy, color='red', marker='o', markersize=2, linestyle='-')
+    plt.plot(*target["utm"].exterior.xy, color='blue', linestyle='-')
 
     # Отрисовка соседних участков
     for neighbor in neighbors:
@@ -119,17 +122,18 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters, should_dr
                      neighbor["short_id"],
                      fontsize=8, ha='center', va='center')
 
-    target_center = target["utm"].centroid
+    target_poly: Polygon = target["utm"]
+    minx, miny, maxx, maxy = target_poly.bounds
     # plt.tight_layout()
     # Устанавливаем границы области отображения
-    coef = 1
+    coef = 2
     plt.xlim(
-        target_center.x - radius_meters * coef,
-        target_center.x + radius_meters * coef
+        minx - radius_meters * coef,
+        maxx + radius_meters * coef
     )
     plt.ylim(
-        target_center.y - radius_meters * coef,
-        target_center.y + radius_meters * coef
+        miny - radius_meters * coef,
+        maxy + radius_meters * coef
     )
 
     plt.title('Участки и их взаиморасположение')
@@ -137,7 +141,9 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters, should_dr
     plt.ylabel('Координата Y')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.subplots_adjust(right=0.75)
-
+    # plt.axis('off')
+    ax.set_xticks([])
+    ax.set_yticks([])
     # plt.tight_layout()
     # plt.axis('equal')  # Сохраняем пропорции
 
