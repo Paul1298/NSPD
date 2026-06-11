@@ -1,0 +1,53 @@
+from django.conf import settings
+from django.http import FileResponse, Http404
+from django.shortcuts import render
+from django.views import View
+
+from .forms import AnalysisForm
+from .services import run_batch
+
+
+class IndexView(View):
+    def get(self, request):
+        form = AnalysisForm()
+        return render(request, 'analyzer/index.html', {'form': form})
+
+    def post(self, request):
+        form = AnalysisForm(request.POST)
+        if not form.is_valid():
+            return render(request, 'analyzer/index.html', {'form': form})
+
+        results, logs = run_batch(
+            kad_ids=form.cleaned_data['kad_ids'],
+            radius_meters=form.cleaned_data['radius_meters'],
+            area_limit=form.cleaned_data['area_limit'],
+            min_intersection_percent=form.cleaned_data['min_intersection_percent'],
+            draw_plots=form.cleaned_data['draw_plots'],
+            draw_kad=form.cleaned_data['draw_kad'],
+        )
+
+        return render(request, 'analyzer/result.html', {
+            'form': form,
+            'results': results,
+            'logs': logs,
+            'success_count': sum(1 for r in results if r.success),
+            'total_count': len(results),
+        })
+
+
+class ReportDownloadView(View):
+    def get(self, request, filename):
+        if not filename.startswith('report_') or not filename.endswith('.txt'):
+            raise Http404
+
+        filepath = settings.REPORTS_DIR / filename
+        if not filepath.is_file():
+            raise Http404
+
+        return FileResponse(
+            open(filepath, 'rb'),
+            as_attachment=True,
+            filename=filename,
+        )
+
+

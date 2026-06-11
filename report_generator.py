@@ -1,4 +1,5 @@
 import datetime
+import os.path
 
 
 def format_direction_string(full_direction_str: str) -> str:
@@ -49,16 +50,15 @@ def generate_report(target, aoi_neighbors) -> str:
     report_lines = []
 
     # --- 2. Шапка отчета ---
-    # target_kad_id = target["kad_id"]
-    # target_permission = target["permission"][0]
-    # target_address = target.get("address", "[адрес не указан]")
-    #
-    # report_lines.append("1.4. Краткая характеристика прилегающей к объекту ОНВ местности")
-    # report_lines.append(
-    #     f"Объект ОНВ расположен по адресу: {target_address}, кадастровый номер земельного участка: {target_kad_id},"
-    #     f" разрешенное использование: {target_permission}, и окружен:"
-    # )
-    # # report_lines.append("")
+    target_kad_id = target["kad_id"]
+    target_permission = target["permission"][0]
+    target_address = target.get("address", "[адрес не указан]")
+
+    report_lines.append("1.4. Краткая характеристика прилегающей к объекту ОНВ местности")
+    report_lines.append(
+        f"Объект ОНВ расположен по адресу: {target_address}, кадастровый номер земельного участка: {target_kad_id},"
+        f" разрешенное использование: {target_permission}, и окружен:"
+    )
 
     # --- 3. Основная логика с группировкой ---
     processed_neighbor_ids = set()
@@ -121,8 +121,9 @@ def generate_report(target, aoi_neighbors) -> str:
     # --- 4. Сохранение ---
     final_report_text = "\n".join(report_lines)
 
-    name = f'report_{target["kad_id"].replace(":", "_")}.txt'
+    name = f'reports{os.path.sep}report_{target["kad_id"].replace(":", "_")}.txt'
     # name = f'report_test.txt'
     with open(name, 'w', encoding='utf-8') as f:
         f.write(final_report_text)
     print(f"Отчет сохранен в {name}")
+    return name, final_report_text

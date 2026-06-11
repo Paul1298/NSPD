@@ -1,4 +1,5 @@
 import math
+import os
 
 import matplotlib
 matplotlib.use('TkAgg') # Явное указание бэкенда
@@ -9,6 +10,7 @@ from shapely import Polygon
 from shapely.geometry import Point
 
 from geo_processor import get_sectors
+from django.conf import settings
 
 
 def plot_sectors(ax, center, radius, color_map=None):
@@ -61,8 +63,59 @@ def plot_sectors(ax, center, radius, color_map=None):
         ax.fill(x, y, color=color, alpha=0.1)
 
 
-def plot_features(target, neighbors, search_circle_utm, radius_meters, should_draw_kad):
-    fig = plt.figure(figsize=(15, 10))
+def plot_features(target, neighbors, search_circle_utm, radius_meters, should_draw_kad, figsize=(12, 8)):
+    """
+    Оригинальная функция для интерактивного отображения графика
+    """
+    fig = plot_features_common(target, neighbors, search_circle_utm, radius_meters, should_draw_kad, figsize)
+    plt.show()
+
+
+def plot_features_to_file(target, neighbors, search_circle_utm, radius_meters, should_draw_kad, kad_id, figsize=(12, 8)):
+    """
+    Сохраняет график в файл вместо отображения
+
+    Args:
+        target: целевой участок
+        neighbors: список соседних участков
+        search_circle_utm: круг поиска
+        radius_meters: радиус поиска в метрах
+        should_draw_kad: флаг отображения кадастровых номеров
+        kad_id: кадастровый номер для имени файла
+        figsize: кортеж (ширина, высота) в дюймах
+
+    Returns:
+        str: относительный путь к сохранённому файлу или None при ошибке
+    """
+    try:
+        # Создаём директорию для графиков
+        PLOTS_DIR = settings.BASE_DIR / 'plots'
+        PLOTS_DIR.mkdir(exist_ok=True)
+
+        # Генерируем имя файла
+        safe_kad_id = kad_id.replace(':', '_')
+        filename = f'plot_{safe_kad_id}.png'
+        filepath = PLOTS_DIR / filename
+
+        fig = plot_features_common(target, neighbors, search_circle_utm, radius_meters, should_draw_kad, figsize)
+
+        # Сохраняем график
+        fig.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+        plt.close(fig)
+
+        # Возвращаем относительный путь от BASE_DIR
+        return str(filepath.relative_to(settings.BASE_DIR))
+
+    except Exception as e:
+        print(f"Ошибка при сохранении графика: {e}")
+        return None
+
+
+def plot_features_common(target, neighbors, search_circle_utm, radius_meters, should_draw_kad, figsize=(12, 8)):
+    """
+    Общая логика построения графика, возвращает фигуру без отображения
+    """
+    fig = plt.figure(figsize=figsize)
     ax = fig.gca()
 
     directions = [
@@ -89,13 +142,19 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters, should_dr
         plt.fill(x, y, color=color, alpha=0.3)
 
     # Отрисовка целевого участка
-
     plt.fill(*target["utm"].exterior.xy, color='blue', alpha=0.4, label=f'{target["short_id"]} Целевой участок')
-    # Добавляем подпись кадастрового номера для соседних участков
     plt.text(target["utm"].centroid.x, target["utm"].centroid.y,
              target["short_id"],
              fontsize=8, ha='center', va='center')
     plt.plot(*target["utm"].exterior.xy, color='blue', linestyle='-')
+
+    # Группируем соседей по направлениям для компактной легенды
+    neighbor_by_direction = {}
+    for neighbor in neighbors:
+        direction = neighbor["direction"].split(',')[0].strip()
+        if direction not in neighbor_by_direction:
+            neighbor_by_direction[direction] = []
+        neighbor_by_direction[direction].append(neighbor)
 
     # Отрисовка соседних участков
     for neighbor in neighbors:
@@ -110,22 +169,17 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters, should_dr
             directions_str = direction
 
         try:
-            plt.fill(*neighbor["utm"].exterior.xy, color=color, alpha=0.5,
-                     label=f'{neighbor["short_id"]} ({directions_str})')
+            plt.fill(*neighbor["utm"].exterior.xy, color=color, alpha=0.5)
         except:
             pass
-        # plt.plot(*neighbor_feat_utm.exterior.xy, color=color, marker='o', markersize=2, linestyle='-')
 
         if should_draw_kad:
-            # Добавляем подпись кадастрового номера для соседних участков
             plt.text(neighbor["utm"].centroid.x, neighbor["utm"].centroid.y,
                      neighbor["short_id"],
                      fontsize=8, ha='center', va='center')
 
     target_poly: Polygon = target["utm"]
     minx, miny, maxx, maxy = target_poly.bounds
-    # plt.tight_layout()
-    # Устанавливаем границы области отображения
     coef = 2
     plt.xlim(
         minx - radius_meters * coef,
@@ -136,15 +190,36 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters, should_dr
         maxy + radius_meters * coef
     )
 
-    plt.title('Участки и их взаиморасположение')
-    plt.xlabel('Координата X')
-    plt.ylabel('Координата Y')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.subplots_adjust(right=0.75)
-    # plt.axis('off')
+    plt.title(f'Участки и их взаиморасположение ({target["short_id"]})', fontsize=12)
+    plt.xlabel('Координата X', fontsize=10)
+    plt.ylabel('Координата Y', fontsize=10)
+
+    # Создаём компактную легенду с группировкой по направлениям
+    legend_elements = []
+
+    # Целевой участок
+    legend_elements.append(plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='blue',
+                                       markersize=8, label=f'{target["short_id"]} Целевой участок'))
+
+    # Группированные направления
+    for direction in directions:
+        if direction in neighbor_by_direction:
+            color = color_map.get(direction, 'gray')
+            count = len(neighbor_by_direction[direction])
+            label = f'{direction}: {count} ({", ".join([n["short_id"] for n in neighbor_by_direction[direction][:3]])}'
+            if count > 3:
+                label += f' +{count-3} др.)'
+            else:
+                label += ')'
+            legend_elements.append(plt.Line2D([0], [0], marker='s', color='w', markerfacecolor=color,
+                                               markersize=6, label=label))
+
+    # Размещаем легенду внутри графика в верхнем правом углу
+    plt.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1, 1),
+               fontsize=8, framealpha=0.9, borderpad=0.5)
+    plt.subplots_adjust(right=0.65)
     ax.set_xticks([])
     ax.set_yticks([])
-    # plt.tight_layout()
-    # plt.axis('equal')  # Сохраняем пропорции
 
-    plt.show()
+    return fig
+

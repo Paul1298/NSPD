@@ -1,0 +1,58 @@
+{% extends "analyzer/base.html" %}
+
+{% block title %}Результаты анализа{% endblock %}
+
+{% block content %}
+<h1>Результаты анализа</h1>
+
+<div class="card">
+    <p>
+        Обработано:
+        <strong class="{% if success_count == total_count %}status-ok{% else %}status-fail{% endif %}">
+            {{ success_count }} из {{ total_count }}
+        </strong>
+    </p>
+    <a href="{% url 'index' %}" class="btn btn-secondary">Новый анализ</a>
+</div>
+
+{% if results %}
+<div class="card">
+    <h2 style="font-size:1.1rem; margin-top:0;">Участки</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Кадастровый номер</th>
+                <th>Статус</th>
+                <th>Соседей</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for result in results %}
+            <tr>
+                <td>{{ result.kad_id }}</td>
+                <td class="{% if result.success %}status-ok{% else %}status-fail{% endif %}">
+                    {{ result.message }}
+                </td>
+                <td>{% if result.success %}{{ result.neighbors_count }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2 style="font-size:1.1rem; margin-top:0;">Журнал</h2>
+    <div class="log">{% for line in logs %}{{ line }}
+{% endfor %}</div>
+</div>
+
+{% for result in results %}
+{% if result.plot_filename %}
+<div class="card">
+    <h2 style="font-size:1.1rem; margin-top:0;">График: {{ result.kad_id }}</h2>
+    <img src="/{{ result.plot_filename }}" alt="График участка {{ result.kad_id }}" style="max-width:100%; height:auto;">
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}НСПД — анализ участков{% endblock %}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 2rem 1rem;
+            background: #f4f6f8;
+            color: #1a1a1a;
+            line-height: 1.5;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { font-size: 1.5rem; margin: 0 0 1.5rem; }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08);
+            margin-bottom: 1rem;
+        }
+        label { display: block; font-weight: 600; margin-bottom: .25rem; }
+        .helptext { font-size: .85rem; color: #666; margin: .25rem 0 .75rem; }
+        input[type="number"], textarea {
+            width: 100%;
+            padding: .5rem .75rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        textarea { font-family: inherit; resize: vertical; }
+        .field { margin-bottom: 1rem; }
+        .errorlist { color: #b00020; margin: .25rem 0; padding: 0; list-style: none; font-size: .9rem; }
+        button, .btn {
+            display: inline-block;
+            background: #1565c0;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: .6rem 1.2rem;
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        button:hover, .btn:hover { background: #0d47a1; }
+        .btn-secondary { background: #546e7a; }
+        .btn-secondary:hover { background: #37474f; }
+        .log {
+            background: #263238;
+            color: #eceff1;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: .85rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .report-preview {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            padding: 1rem;
+            border-radius: 4px;
+            font-size: .9rem;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status-ok { color: #2e7d32; }
+        .status-fail { color: #c62828; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

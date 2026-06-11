@@ -1,0 +1,54 @@
+{% extends "analyzer/base.html" %}
+
+{% block title %}Анализ прилегающих участков{% endblock %}
+
+{% block content %}
+<h1>Анализ прилегающих участков (НСПД)</h1>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="field">
+            {{ form.kad_ids.label_tag }}
+            {{ form.kad_ids }}
+            {% if form.kad_ids.help_text %}<p class="helptext">{{ form.kad_ids.help_text }}</p>{% endif %}
+            {{ form.kad_ids.errors }}
+        </div>
+
+        <div class="field">
+            {{ form.radius_meters.label_tag }}
+            {{ form.radius_meters }}
+            {{ form.radius_meters.errors }}
+        </div>
+
+        <div class="field">
+            {{ form.area_limit.label_tag }}
+            {{ form.area_limit }}
+            {{ form.area_limit.errors }}
+        </div>
+
+        <div class="field">
+            {{ form.min_intersection_percent.label_tag }}
+            {{ form.min_intersection_percent }}
+            {{ form.min_intersection_percent.errors }}
+        </div>
+
+        <div class="field">
+            {{ form.draw_plots }}
+            {{ form.draw_plots.label_tag }}
+            {% if form.draw_plots.help_text %}<p class="helptext">{{ form.draw_plots.help_text }}</p>{% endif %}
+            {{ form.draw_plots.errors }}
+        </div>
+
+        <div class="field">
+            {{ form.draw_kad }}
+            {{ form.draw_kad.label_tag }}
+            {% if form.draw_kad.help_text %}<p class="helptext">{{ form.draw_kad.help_text }}</p>{% endif %}
+            {{ form.draw_kad.errors }}
+        </div>
+
+        <button type="submit">Запустить анализ</button>
+    </form>
+</div>
+{% endblock %}
