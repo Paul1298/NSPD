@@ -1,36 +1,56 @@
 from django.conf import settings
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, StreamingHttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views import View
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+import asyncio
+import json
 import time
+from typing import Dict, List
 
 from .forms import AnalysisForm
 from .services import run_batch_with_callback
-from .streaming import log_sessions
+
+# Глобальное хранилище сессий
+log_sessions: Dict[str, List[Dict]] = {}
 
 
+@csrf_exempt
+async def logs_stream(request, session_id: str):
+    """Async SSE endpoint для стриминга логов"""
+    async def event_generator():
+        last_id = 0
+        while True:
+            if session_id in log_sessions:
+                logs = log_sessions[session_id]
+                while last_id < len(logs):
+                    log_entry = logs[last_id]
+                    yield f"data: {json.dumps(log_entry)}\n\n"
+                    last_id += 1
+            await asyncio.sleep(0.1)
+    
+    response = StreamingHttpResponse(
+        event_generator(),
+        content_type='text/event-stream',
+    )
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    response['Connection'] = 'keep-alive'
+    return response
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class IndexView(View):
     def get(self, request):
         form = AnalysisForm()
-        return render(request, 'analyzer/index.html', {
-            'form': form,
-            'results': None,
-            'logs': [],
-            'success_count': 0,
-            'total_count': 0,
-        })
+        return render(request, 'analyzer/index.html', {'form': form})
 
     def post(self, request):
         form = AnalysisForm(request.POST)
         
         if not form.is_valid():
-            return render(request, 'analyzer/index.html', {
-                'form': form,
-                'results': None,
-                'logs': [],
-                'success_count': 0,
-                'total_count': 0,
-            })
+            return JsonResponse({'success': False, 'error': str(form.errors)})
 
         session_id = str(int(time.time() * 1000))
         log_sessions[session_id] = []
@@ -55,6 +75,18 @@ class IndexView(View):
         if session_id in log_sessions:
             del log_sessions[session_id]
 
+        # Для AJAX возвращаем HTML результатов
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.template.loader import render_to_string
+            html = render_to_string('analyzer/_results_partial.html', {
+                'results': results,
+                'logs': logs,
+                'success_count': sum(1 for r in results if r.success),
+                'total_count': len(results),
+            })
+            return JsonResponse({'success': True, 'html': html})
+
+        # Обычный запрос
         return render(request, 'analyzer/index.html', {
             'form': form,
             'results': results,
@@ -68,9 +100,7 @@ class ReportDownloadView(View):
     def get(self, request, filename):
         if not filename.startswith('report_') or not filename.endswith('.txt'):
             raise Http404
-
         filepath = settings.REPORTS_DIR / filename
         if not filepath.is_file():
             raise Http404
-
         return FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
