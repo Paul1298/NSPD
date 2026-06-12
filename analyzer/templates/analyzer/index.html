@@ -14,7 +14,7 @@
 
         <div class="field">
             <label for="id_radius_meters">Радиус поиска (м)</label>
-            <input type="number" name="radius_meters" id="id_radius_meters" value="250" min="10" max="5000">
+            <input type="number" name="radius_meters" id="id_radius_meters" value="100" min="10" max="5000">
         </div>
 
         <div class="field">
@@ -24,7 +24,8 @@
 
         <div class="field">
             <label for="id_min_intersection_percent">Порог пересечения (%)</label>
-            <input type="number" name="min_intersection_percent" id="id_min_intersection_percent" value="40" min="1" max="100">
+            <input type="number" name="min_intersection_percent" id="id_min_intersection_percent" value="40" min="1"
+                   max="100">
         </div>
 
         <div class="field checkbox-field">
@@ -56,139 +57,175 @@
 
 {% block scripts %}
 <script>
-let eventSource = null;
+    let eventSource = null;
+    let currentSessionId = null;  //  Глобальная переменная для sessionId
 
-document.getElementById('analysis-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const btn = document.getElementById('submit-btn');
-    btn.disabled = true;
-    btn.textContent = '⏳ Обработка...';
-    
-    // Генерируем ID сессии
-    const sessionId = Date.now();
-    
-    // Показываем панель статуса
-    document.getElementById('status-area').innerHTML = `
-        <div class="card">
-            <h3>📋 Журнал выполнения</h3>
-            <div id="log-box" class="log" style="max-height:300px;overflow-y:auto;">⏳ Запуск...</div>
-            
-            <div id="progress-container" style="display:none; margin-top:1rem; padding:1rem; background:#1e293b; border-radius:8px;">
-                <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
-                    <span id="progress-text" style="color:#fbbf24;">🔍 Поиск...</span>
-                    <span id="progress-percent" style="color:#fbbf24;">0%</span>
-                </div>
-                <div style="background:#334155;border-radius:9999px;height:8px;overflow:hidden;">
-                    <div id="progress-bar" style="background:linear-gradient(90deg,#fbbf24,#f59e0b);height:100%;width:0%;transition:width 0.3s;"></div>
+    document.getElementById('analysis-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Обработка...';
+
+        // Генерируем ID сессии
+        currentSessionId = Date.now().toString();
+
+        // Показываем панель статуса
+        document.getElementById('status-area').innerHTML = `
+            <div class="card">
+                <h3>📋 Журнал выполнения</h3>
+                <div id="log-box" class="log" style="max-height:300px;overflow-y:auto;">⏳ Запуск...</div>
+
+                <div id="progress-container" style="display:none; margin-top:1rem; padding:1rem; background:#1e293b; border-radius:8px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+                        <span id="progress-text" style="color:#fbbf24;">🔍 Поиск...</span>
+                        <span id="progress-percent" style="color:#fbbf24;">0%</span>
+                    </div>
+                    <div style="background:#334155;border-radius:9999px;height:8px;overflow:hidden;">
+                        <div id="progress-bar" style="background:linear-gradient(90deg,#fbbf24,#f59e0b);height:100%;width:0%;transition:width 0.3s;"></div>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-    
-    // Подключаемся к SSE endpoint
-    eventSource = new EventSource(`/logs/${sessionId}/`);
-    console.log('📡 SSE подключен к /logs/' + sessionId);
-    
-    eventSource.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        const logBox = document.getElementById('log-box');
-        
-        if (logBox) {
-            const time = new Date().toLocaleTimeString('ru-RU');
-            let color = '#fff';
-            if (data.type === 'error') color = '#f87171';
-            else if (data.type === 'success') color = '#4ade80';
-            else if (data.type === 'progress') color = '#fbbf24';
-            
-            logBox.innerHTML += `<span style="color:${color}">[${time}] ${data.message}</span><br>`;
-            logBox.scrollTop = logBox.scrollHeight;
-        }
-        
-        // Обновляем прогресс-бар
-        const match = data.message.match(/\[(\d+)%\]/);
-        if (match) {
-            const pct = parseInt(match[1]);
-            const pbox = document.getElementById('progress-container');
-            const pbar = document.getElementById('progress-bar');
-            const pnum = document.getElementById('progress-percent');
-            if (pbox && pbar && pnum) {
-                pbox.style.display = 'block';
-                pbar.style.width = pct + '%';
-                pnum.textContent = pct + '%';
+        `;
+
+        // Подключаемся к SSE endpoint
+        eventSource = new EventSource(`/logs/${currentSessionId}/`);
+        console.log(' SSE подключен к /logs/' + currentSessionId);
+
+        eventSource.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            const logBox = document.getElementById('log-box');
+
+            if (logBox) {
+                const time = new Date().toLocaleTimeString('ru-RU');
+                let color = '#fff';
+                if (data.type === 'error') color = '#f87171';
+                else if (data.type === 'success') color = '#4ade80';
+                else if (data.type === 'progress') color = '#fbbf24';
+                else if (data.type === 'done') {
+                    // 🔥 Сигнал завершения — закрываем SSE и грузим результаты
+                    color = '#4ade80';
+                    logBox.innerHTML += `<span style="color:${color}">[${time}] ${data.message}</span><br>`;
+                    logBox.scrollTop = logBox.scrollHeight;
+
+                    eventSource.close();
+                    eventSource = null;
+
+                    // Небольшая задержка, чтобы браузер успел обработать закрытие
+                    setTimeout(() => loadResults(currentSessionId), 500);
+                    return;  // выходим, чтобы не дублировать сообщение
+                }
+
+                logBox.innerHTML += `<span style="color:${color}">[${time}] ${data.message}</span><br>`;
+                logBox.scrollTop = logBox.scrollHeight;
             }
-        }
-    };
-    
-    eventSource.onerror = function() {
-        console.log('🔌 SSE отключен');
-        eventSource.close();
-    };
-    
-    // Отправляем форму через AJAX
-    const formData = new FormData(this);
-    
-    // 🔥 ИСПРАВЛЕНИЕ: Передаем sessionId на бэкенд
-    formData.append('session_id', sessionId);
 
-    fetch('.', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-    })
-    // 🔥 ИСПРАВЛЕНИЕ: Парсим ответ как JSON
-    .then(r => r.json())
-    .then(data => {
-        // Теперь data - это объект {success: true, html: "..."}
-        if (data.success && data.html) {
-            const parser = new DOMParser();
-            // Парсим именно HTML-строку из поля data.html
-            const doc = parser.parseFromString(data.html, 'text/html');
-            const newResults = doc.querySelector('#results-area');
-
-            if (newResults && newResults.innerHTML.trim()) {
-                // Очищаем статус и вставляем результаты
-                document.getElementById('status-area').innerHTML = '';
-                document.getElementById('results-area').innerHTML = newResults.innerHTML;
-                document.getElementById('results-area').style.display = 'block';
-
-                // Закрываем SSE, так как задача выполнена
-                if (eventSource) eventSource.close();
+            // Обновляем прогресс-бар
+            const match = data.message.match(/\[(\d+)%\]/);
+            if (match) {
+                const pct = parseInt(match[1]);
+                const pbox = document.getElementById('progress-container');
+                const pbar = document.getElementById('progress-bar');
+                const pnum = document.getElementById('progress-percent');
+                if (pbox && pbar && pnum) {
+                    pbox.style.display = 'block';
+                    pbar.style.width = pct + '%';
+                    pnum.textContent = pct + '%';
+                }
             }
-        } else if (data.error) {
-            alert('Ошибка: ' + data.error);
+        };
+
+        eventSource.onerror = function() {
+            console.log('🔌 SSE отключен');
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        };
+
+        // Отправляем форму через AJAX
+        const formData = new FormData(this);
+        formData.append('session_id', currentSessionId);
+
+        fetch('.', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Ошибка запуска: ' + data.error);
+                btn.disabled = false;
+                btn.textContent = '🔍 Запустить';
+            }
+            // Если success — просто ждём логов через SSE, ничего не делаем
+        })
+        .catch(err => {
+            console.error('💥 Ошибка:', err);
+            document.getElementById('form-errors').style.display = 'block';
+            document.getElementById('form-errors').innerHTML = '<div class="errorlist"><li>Ошибка: ' + err + '</li></div>';
+            btn.disabled = false;
+            btn.textContent = '🔍 Запустить';
+        });
+    });
+
+    // 🔥 Функция загрузки результатов (отдельный GET-запрос)
+    function loadResults(sessionId) {
+        console.log('📥 Загрузка результатов для сессии:', sessionId);
+
+        fetch(`/results/${sessionId}/`)
+            .then(r => {
+                if (!r.ok) {
+                    throw new Error('HTTP ' + r.status);
+                }
+                return r.json();
+            })
+            .then(data => {
+                if (data.success && data.html) {
+                    document.getElementById('status-area').innerHTML = '';
+                    document.getElementById('results-area').innerHTML = data.html;
+                    document.getElementById('results-area').style.display = 'block';
+
+                    const btn = document.getElementById('submit-btn');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = '🔍 Запустить';
+                    }
+                } else {
+                    alert('Ошибка загрузки результатов: ' + data.error);
+                }
+            })
+            .catch(err => {
+                console.error('Ошибка загрузки результатов:', err);
+                alert('Не удалось загрузить результаты: ' + err.message);
+            });
+    }
+
+    function resetForm() {
+        document.getElementById('analysis-form').reset();
+        document.getElementById('status-area').innerHTML = '';
+        document.getElementById('results-area').innerHTML = '';
+        document.getElementById('results-area').style.display = 'none';
+        document.getElementById('form-errors').style.display = 'none';
+
+        // Закрываем SSE если он открыт
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
         }
+    }
 
-        btn.disabled = false;
-        btn.textContent = '🔍 Запустить';
-    })
-    .catch(err => {
-        console.error('💥 Ошибка:', err);
-        document.getElementById('form-errors').style.display = 'block';
-        document.getElementById('form-errors').innerHTML = '<div class="errorlist"><li>Ошибка сети или парсинга: ' + err + '</li></div>';
-        btn.disabled = false;
-        btn.textContent = '🔍 Запустить';
-    });
-});
-
-function resetForm() {
-    document.getElementById('analysis-form').reset();
-    document.getElementById('status-area').innerHTML = '';
-    document.getElementById('results-area').innerHTML = '';
-    document.getElementById('results-area').style.display = 'none';
-    document.getElementById('form-errors').style.display = 'none';
-}
-
-function copyReport(id) {
-    const ta = document.getElementById(id);
-    ta.select();
-    navigator.clipboard.writeText(ta.value).then(() => {
-        const fb = document.getElementById(id.replace('report-', 'feedback-'));
-        fb.classList.add('show');
-        setTimeout(() => fb.classList.remove('show'), 2000);
-    });
-}
+    function copyReport(id) {
+        const ta = document.getElementById(id);
+        ta.select();
+        navigator.clipboard.writeText(ta.value).then(() => {
+            const fb = document.getElementById(id.replace('report-', 'feedback-'));
+            fb.classList.add('show');
+            setTimeout(() => fb.classList.remove('show'), 2000);
+        });
+    }
 </script>
 {% endblock %}
