@@ -81,34 +81,35 @@ def process_neighbors(
         return []
 
     processed_neighbors = []
-    for neighbor_feat in neighbor_feats:
-        if neighbor_feat.properties.options.cad_num == target["kad_id"]:
-            continue
+    with Nspd() as nspd:
+        for neighbor_feat in neighbor_feats:
+            if neighbor_feat.properties.options.cad_num == target["kad_id"]:
+                continue
 
-        if (
-                neighbor_feat.properties.options.specified_area and
-                neighbor_feat.properties.options.specified_area < area_limit
-        ):
-            continue
+            if (
+                    neighbor_feat.properties.options.specified_area and
+                    neighbor_feat.properties.options.specified_area < area_limit
+            ):
+                continue
 
-        neighbor = {
-            "feat": neighbor_feat,
-            'kad_id': neighbor_feat.properties.options.cad_num,
-            "short_id": ':'.join(neighbor_feat.properties.options.cad_num.split(':')[2:]),
-            # 'permission': nspd.tab_permission_type(neighbor_feat),
-            "4326": neighbor_feat.geometry.to_shape(),
-            "utm": crs_4326_to_utm(neighbor_feat.geometry.to_shape()),
-        }
+            neighbor = {
+                "feat": neighbor_feat,
+                'kad_id': neighbor_feat.properties.options.cad_num,
+                "short_id": ':'.join(neighbor_feat.properties.options.cad_num.split(':')[2:]),
+                'permission': nspd.tab_permission_type(neighbor_feat),
+                "4326": neighbor_feat.geometry.to_shape(),
+                "utm": crs_4326_to_utm(neighbor_feat.geometry.to_shape()),
+            }
 
-        distance, direction = get_distance_direction(
-            target["utm"],
-            neighbor["utm"],
-            search_circle_utm,
-            min_intersection_percent,
-        )
-        neighbor["distance"] = distance
-        neighbor["direction"] = direction
+            distance, direction = get_distance_direction(
+                target["utm"],
+                neighbor["utm"],
+                search_circle_utm,
+                min_intersection_percent,
+            )
+            neighbor["distance"] = distance
+            neighbor["direction"] = direction
 
-        processed_neighbors.append(neighbor)
+            processed_neighbors.append(neighbor)
 
     return sort_neighbors_by_direction(processed_neighbors)
