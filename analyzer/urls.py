@@ -1,6 +1,7 @@
 from django.urls import path
 
-from .views import IndexView, ReportDownloadView, logs_stream
+from .views import IndexView, ReportDownloadView
+from .streaming import logs_stream
 
 urlpatterns = [
     path('', IndexView.as_view(), name='index'),

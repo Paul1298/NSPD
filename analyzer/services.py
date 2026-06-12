@@ -99,6 +99,14 @@ def _analyze_one(
     target, crs_4326_to_utm, crs_utm_to_4326 = process_target(target_feat, [])
     search_circle_utm = search_area(target, radius_meters)
 
+    def progress_callback(current: int, total: int, message: str):
+        """Callback для обновления прогресса поиска соседей"""
+        if total > 0:
+            percent = int((current / total) * 100)
+            log(f'  📊 [{percent}%] {message}', 'progress')
+        else:
+            log(f'  📊 {message}', 'progress')
+
     log(f'  📡 Поиск соседей в радиусе {radius_meters}м...', 'progress')
     processed_neighbors = process_neighbors(
         target,
@@ -108,6 +116,7 @@ def _analyze_one(
         crs_utm_to_4326,
         area_limit,
         min_intersection_percent,
+        progress_callback=progress_callback,
     )
     log(f'  ✓ Найдено соседей: {len(processed_neighbors)}', 'info')
 

@@ -1,43 +1,12 @@
 from django.conf import settings
-from django.http import FileResponse, Http404, StreamingHttpResponse
+from django.http import FileResponse, Http404
 from django.shortcuts import render
 from django.views import View
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-import json
 import time
-import threading
-from typing import Dict, List
 
 from .forms import AnalysisForm
 from .services import run_batch_with_callback
-
-# Хранилище сессий логов (в памяти для простоты)
-log_sessions: Dict[str, List[str]] = {}
-
-
-@csrf_exempt
-def logs_stream(request, session_id: str):
-    """Server-Sent Events endpoint для стриминга логов"""
-
-    def event_stream():
-        last_id = 0
-        while True:
-            if session_id in log_sessions:
-                logs = log_sessions[session_id]
-                while last_id < len(logs):
-                    log_entry = logs[last_id]
-                    yield f"data: {json.dumps(log_entry)}\n\n"
-                    last_id += 1
-            time.sleep(0.1)
-
-    response = StreamingHttpResponse(
-        event_stream(),
-        content_type='text/event-stream',
-    )
-    response['Cache-Control'] = 'no-cache'
-    response['X-Accel-Buffering'] = 'no'
-    return response
+from .streaming import log_sessions
 
 
 class IndexView(View):
@@ -53,17 +22,7 @@ class IndexView(View):
 
     def post(self, request):
         form = AnalysisForm(request.POST)
-
-        # Если нажата кнопка "Новый анализ" - просто показываем чистую форму
-        if 'reset' in request.POST:
-            return render(request, 'analyzer/index.html', {
-                'form': AnalysisForm(),
-                'results': None,
-                'logs': [],
-                'success_count': 0,
-                'total_count': 0,
-            })
-
+        
         if not form.is_valid():
             return render(request, 'analyzer/index.html', {
                 'form': form,
@@ -73,12 +32,10 @@ class IndexView(View):
                 'total_count': 0,
             })
 
-        # Создаём сессию для логов
         session_id = str(int(time.time() * 1000))
         log_sessions[session_id] = []
 
-        def log_callback(message: str, log_type: str = 'info'):
-            """Callback для добавления логов в сессию"""
+        def log_callback(message, log_type='info'):
             log_sessions[session_id].append({
                 'message': message,
                 'type': log_type,
@@ -95,7 +52,6 @@ class IndexView(View):
             log_callback=log_callback,
         )
 
-        # Очищаем сессию после завершения
         if session_id in log_sessions:
             del log_sessions[session_id]
 
@@ -117,10 +73,4 @@ class ReportDownloadView(View):
         if not filepath.is_file():
             raise Http404
 
-        return FileResponse(
-            open(filepath, 'rb'),
-            as_attachment=True,
-            filename=filename,
-        )
-
-
+        return FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)

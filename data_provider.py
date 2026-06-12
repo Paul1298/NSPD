@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Optional, Callable, List, Dict
 
 import geopandas as gpd
 from pynspd import NspdFeature, Nspd
@@ -71,25 +72,42 @@ def process_neighbors(
         crs_utm_to_4326,
         area_limit=2,
         min_intersection_percent=5,
-):
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+) -> List[Dict]:
+    """
+    Обрабатывает соседние участки
+
+    Args:
+        progress_callback: Функция callback(current, total, message) для обновления прогресса
+    """
     neighbor_feats = nspd_func(
         crs_utm_to_4326(search_circle_utm),
         NspdFeature.by_title("Земельные участки из ЕГРН"),
     )
 
     if not neighbor_feats:
+        if progress_callback:
+            progress_callback(0, 0, "Соседи не найдены")
         return []
+
+    total_neighbors = len(neighbor_feats)
+    if progress_callback:
+        progress_callback(0, total_neighbors, f"Найдено {total_neighbors} кандидатов на обработку")
 
     processed_neighbors = []
     with Nspd() as nspd:
-        for neighbor_feat in neighbor_feats:
+        for idx, neighbor_feat in enumerate(neighbor_feats, start=1):
             if neighbor_feat.properties.options.cad_num == target["kad_id"]:
+                if progress_callback:
+                    progress_callback(idx, total_neighbors, f"Пропуск целевого участка")
                 continue
 
             if (
                     neighbor_feat.properties.options.specified_area and
                     neighbor_feat.properties.options.specified_area < area_limit
             ):
+                if progress_callback:
+                    progress_callback(idx, total_neighbors, f"Пропуск {neighbor_feat.properties.options.cad_num} (малая площадь)")
                 continue
 
             neighbor = {
@@ -101,6 +119,9 @@ def process_neighbors(
                 "utm": crs_4326_to_utm(neighbor_feat.geometry.to_shape()),
             }
 
+            if progress_callback:
+                progress_callback(idx, total_neighbors, f"Обработка {neighbor['short_id']}...")
+
             distance, direction = get_distance_direction(
                 target["utm"],
                 neighbor["utm"],
@@ -111,5 +132,11 @@ def process_neighbors(
             neighbor["direction"] = direction
 
             processed_neighbors.append(neighbor)
+
+            if progress_callback:
+                progress_callback(idx, total_neighbors, f"✓ {neighbor['short_id']} добавлен")
+
+    if progress_callback:
+        progress_callback(total_neighbors, total_neighbors, f"Обработано {len(processed_neighbors)} из {total_neighbors}")
 
     return sort_neighbors_by_direction(processed_neighbors)

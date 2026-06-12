@@ -3,65 +3,43 @@
 {% block input_form %}
 <div class="card">
     <h2>⚙️ Параметры анализа</h2>
-    <form method="post" id="analysis-form">
+    <form method="post">
         {% csrf_token %}
 
         <div class="field">
-            <label for="{{ form.kad_ids.id_for_label }}">Кадастровые номера</label>
-            {{ form.kad_ids }}
-            {% if form.kad_ids.help_text %}<p class="helptext">{{ form.kad_ids.help_text }}</p>{% endif %}
-            {{ form.kad_ids.errors }}
+            <label for="id_kad_ids">Кадастровые номера</label>
+            <textarea name="kad_ids" id="id_kad_ids" rows="6" placeholder="86:14:0101002:715">{{ form.kad_ids.value|default:'' }}</textarea>
+            <p class="helptext">По одному номеру на строку</p>
         </div>
 
         <div class="field">
-            <label for="{{ form.radius_meters.id_for_label }}">
-                {{ form.radius_meters.label }}
-                <span class="helptext">(10–5000 м)</span>
-            </label>
-            {{ form.radius_meters }}
-            {% if form.radius_meters.help_text %}<p class="helptext">{{ form.radius_meters.help_text }}</p>{% endif %}
-            {{ form.radius_meters.errors }}
+            <label for="id_radius_meters">Радиус поиска (м)</label>
+            <input type="number" name="radius_meters" id="id_radius_meters" value="{{ form.radius_meters.value|default:250 }}" min="10" max="5000">
         </div>
 
         <div class="field">
-            <label for="{{ form.area_limit.id_for_label }}">
-                {{ form.area_limit.label }}
-                <span class="helptext">(0–100000 м²)</span>
-            </label>
-            {{ form.area_limit }}
-            {% if form.area_limit.help_text %}<p class="helptext">{{ form.area_limit.help_text }}</p>{% endif %}
-            {{ form.area_limit.errors }}
+            <label for="id_area_limit">Мин. площадь ЗУ (м²)</label>
+            <input type="number" name="area_limit" id="id_area_limit" value="{{ form.area_limit.value|default:5 }}" min="0">
         </div>
 
         <div class="field">
-            <label for="{{ form.min_intersection_percent.id_for_label }}">
-                {{ form.min_intersection_percent.label }}
-                <span class="helptext">(1–100%)</span>
-            </label>
-            {{ form.min_intersection_percent }}
-            {% if form.min_intersection_percent.help_text %}<p class="helptext">{{ form.min_intersection_percent.help_text }}</p>{% endif %}
-            {{ form.min_intersection_percent.errors }}
+            <label for="id_min_intersection_percent">Порог пересечения (%)</label>
+            <input type="number" name="min_intersection_percent" id="id_min_intersection_percent" value="{{ form.min_intersection_percent.value|default:40 }}" min="1" max="100">
         </div>
 
         <div class="field checkbox-field">
-            {{ form.draw_plots }}
-            <label for="{{ form.draw_plots.id_for_label }}">{{ form.draw_plots.label }}</label>
+            <input type="checkbox" name="draw_plots" id="id_draw_plots" {% if form.draw_plots.value %}checked{% endif %}>
+            <label for="id_draw_plots">Создать визуализацию</label>
         </div>
-        {% if form.draw_plots.help_text %}<p class="helptext" style="margin-left: 24px;">{{ form.draw_plots.help_text }}</p>{% endif %}
 
         <div class="field checkbox-field">
-            {{ form.draw_kad }}
-            <label for="{{ form.draw_kad.id_for_label }}">{{ form.draw_kad.label }}</label>
+            <input type="checkbox" name="draw_kad" id="id_draw_kad" {% if form.draw_kad.value %}checked{% endif %}>
+            <label for="id_draw_kad">Показывать номера на графиках</label>
         </div>
-        {% if form.draw_kad.help_text %}<p class="helptext" style="margin-left: 24px;">{{ form.draw_kad.help_text }}</p>{% endif %}
 
         <div class="button-row">
-            <button type="submit" name="analyze" class="btn btn-primary" id="submit-btn">
-                <span class="btn-icon">🔍</span> Запустить анализ
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="resetForm()">
-                <span class="btn-icon">↻</span> Сбросить
-            </button>
+            <button type="submit" class="btn btn-primary">🔍 Запустить анализ</button>
+            <button type="submit" name="reset" class="btn btn-secondary">↻ Сброс</button>
         </div>
     </form>
 </div>
@@ -79,7 +57,7 @@
 </div>
 
 <div class="card">
-    <h3 class="card-title">Сводка по участкам</h3>
+    <h3 class="card-title">📋 Сводка по участкам</h3>
     <div class="table-responsive">
         <table>
             <thead>
@@ -92,19 +70,19 @@
                 </tr>
             </thead>
             <tbody>
-                {% for result in results %}
-                <tr class="{% if result.success %}row-success{% else %}row-error{% endif %}">
+                {% for r in results %}
+                <tr class="{% if r.success %}row-success{% else %}row-error{% endif %}">
                     <td>{{ forloop.counter }}</td>
-                    <td class="kad-number">{{ result.kad_id }}</td>
+                    <td class="kad-number">{{ r.kad_id }}</td>
                     <td>
-                        <span class="status-badge {% if result.success %}badge-success{% else %}badge-error{% endif %}">
-                            {{ result.message }}
+                        <span class="status-badge {% if r.success %}badge-success{% else %}badge-error{% endif %}">
+                            {{ r.message }}
                         </span>
                     </td>
-                    <td>{% if result.success %}{{ result.neighbors_count }}{% else %}—{% endif %}</td>
+                    <td>{% if r.success %}{{ r.neighbors_count }}{% else %}—{% endif %}</td>
                     <td>
-                        {% if result.report_filename %}
-                        <a href="{% url 'report_download' result.report_filename %}" class="btn btn-small btn-outline">
+                        {% if r.report_filename %}
+                        <a href="{% url 'report_download' r.report_filename %}" class="btn btn-small btn-outline">
                             📥 Скачать
                         </a>
                         {% else %}<span class="text-muted">—</span>{% endif %}
@@ -117,47 +95,46 @@
 </div>
 
 <div class="card">
-    <h3 class="card-title">📋 Журнал выполнения</h3>
-    <div class="log" id="log-container">{% for line in logs %}{{ line }}
+    <h3 class="card-title">📜 Журнал выполнения</h3>
+    <div class="log">{% for line in logs %}{{ line }}
 {% endfor %}</div>
 </div>
 
 <!-- Текстовые отчёты -->
-{% for result in results %}
-{% if result.report_text %}
-<div class="card">
-    <div class="report-header">
-        <h3 class="card-title">📄 Отчёт: {{ result.kad_id }}</h3>
-        <button class="btn btn-small btn-copy" onclick="copyReport('report-{{ forloop.counter }}')">
-            📋 Копировать
-        </button>
-        <span id="feedback-{{ forloop.counter }}" class="copy-feedback">✓ Скопировано!</span>
+{% for r in results %}
+    {% if r.report_text %}
+    <div class="card">
+        <div class="report-header">
+            <h3 class="card-title">📄 Отчёт: {{ r.kad_id }}</h3>
+            <button class="btn btn-small btn-copy" onclick="copyReport('report-{{ forloop.counter }}')">
+                📋 Копировать
+            </button>
+            <span id="feedback-{{ forloop.counter }}" class="copy-feedback">✓ Скопировано!</span>
+        </div>
+        <textarea id="report-{{ forloop.counter }}" class="report-textarea" rows="12" readonly>{{ r.report_text }}</textarea>
     </div>
-    <textarea id="report-{{ forloop.counter }}" class="report-textarea" rows="12" readonly>{{ result.report_text }}</textarea>
-</div>
-{% endif %}
+    {% endif %}
 {% endfor %}
 
 <!-- Графики -->
-{% for result in results %}
-{% if result.plot_filename %}
-<div class="card">
-    <h3 class="card-title">📊 Визуализация: {{ result.kad_id }}</h3>
-    <div class="plot-container">
-        <img src="/{{ result.plot_filename }}" alt="График участка {{ result.kad_id }}" class="plot-image">
+{% for r in results %}
+    {% if r.plot_filename %}
+    <div class="card">
+        <h3 class="card-title">📊 Визуализация: {{ r.kad_id }}</h3>
+        <div class="plot-container">
+            <img src="/{{ r.plot_filename }}" alt="График {{ r.kad_id }}" class="plot-image">
+        </div>
     </div>
-</div>
-{% endif %}
+    {% endif %}
 {% endfor %}
-
 {% else %}
-<div class="card" style="text-align: center; padding: 3rem 1.5rem;">
-    <div style="font-size: 3rem; margin-bottom: 1rem;">📍</div>
-    <h3 style="color: var(--text-secondary); font-weight: 500;">
+<div class="card" style="text-align:center;padding:3rem;">
+    <div style="font-size:3rem;margin-bottom:1rem;">📍</div>
+    <h3 style="color:var(--text-secondary);font-weight:500;">
         Введите кадастровые номера и запустите анализ
     </h3>
-    <p class="helptext" style="margin-top: 0.5rem;">
-        Результаты и журнал появятся в этой панели
+    <p class="helptext" style="margin-top:0.5rem;">
+        Результаты появятся в этой панели
     </p>
 </div>
 {% endif %}
@@ -165,73 +142,6 @@
 
 {% block scripts %}
 <script>
-// Логирование в реальном времени через SSE
-let eventSource = null;
-let currentSessionId = null;
-
-function resetForm() {
-    document.getElementById('analysis-form').reset();
-    window.location.href = window.location.pathname;
-}
-
-function startRealTimeLogs() {
-    currentSessionId = Date.now();
-    const logContainer = document.getElementById('log-container');
-    if (logContainer) {
-        logContainer.innerHTML = '<span style="color: #60a5fa;">⏳ Подключение к серверу...</span>\n';
-    }
-    
-    eventSource = new EventSource(`/analyzer/logs/${currentSessionId}/`);
-    
-    eventSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        if (logContainer) {
-            // Добавляем новую строку лога
-            const timestamp = new Date().toLocaleTimeString('ru-RU');
-            const logLine = `[${timestamp}] ${data.message}\n`;
-            
-            if (data.type === 'error') {
-                logContainer.innerHTML += `<span style="color: #f87171;">${logLine}</span>`;
-            } else if (data.type === 'success') {
-                logContainer.innerHTML += `<span style="color: #4ade80;">${logLine}</span>`;
-            } else if (data.type === 'progress') {
-                logContainer.innerHTML += `<span style="color: #fbbf24;">${logLine}</span>`;
-            } else {
-                logContainer.innerHTML += logLine;
-            }
-            
-            // Автопрокрутка вниз
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
-    };
-    
-    eventSource.onerror = function() {
-        console.log('SSE connection closed');
-        eventSource.close();
-    };
-}
-
-function stopRealTimeLogs() {
-    if (eventSource) {
-        eventSource.close();
-        eventSource = null;
-    }
-}
-
-// Обработка отправки формы
-document.getElementById('analysis-form').addEventListener('submit', function(e) {
-    const submitBtn = document.getElementById('submit-btn');
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="btn-icon">⏳</span> Обработка...';
-    
-    // Запускаем SSE подключение
-    startRealTimeLogs();
-    
-    // Форма отправляется обычным способом
-    // SSE будет получать логи в реальном времени
-});
-
-// Функция копирования отчёта
 function copyReport(elementId) {
     const textarea = document.getElementById(elementId);
     textarea.select();
@@ -242,8 +152,7 @@ function copyReport(elementId) {
         const feedback = document.getElementById(feedbackId);
         feedback.classList.add('show');
         setTimeout(() => feedback.classList.remove('show'), 2000);
-    }).catch(err => {
-        console.error('Ошибка копирования:', err);
+    }).catch(() => {
         document.execCommand('copy');
         const feedbackId = elementId.replace('report-', 'feedback-');
         const feedback = document.getElementById(feedbackId);
@@ -251,10 +160,5 @@ function copyReport(elementId) {
         setTimeout(() => feedback.classList.remove('show'), 2000);
     });
 }
-
-// Очистка при уходе со страницы
-window.addEventListener('beforeunload', function() {
-    stopRealTimeLogs();
-});
 </script>
 {% endblock %}
