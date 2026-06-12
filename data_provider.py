@@ -119,8 +119,8 @@ def process_neighbors(
                 "utm": crs_4326_to_utm(neighbor_feat.geometry.to_shape()),
             }
 
-            if progress_callback:
-                progress_callback(idx, total_neighbors, f"Обработка {neighbor['short_id']}...")
+            # if progress_callback:
+            #     progress_callback(idx, total_neighbors, f"Обработка {neighbor['short_id']}...")
 
             distance, direction = get_distance_direction(
                 target["utm"],

@@ -3,161 +3,191 @@
 {% block input_form %}
 <div class="card">
     <h2>⚙️ Параметры анализа</h2>
-    <form method="post">
+    <form id="analysis-form">
         {% csrf_token %}
 
         <div class="field">
             <label for="id_kad_ids">Кадастровые номера</label>
-            <textarea name="kad_ids" id="id_kad_ids" rows="6" placeholder="86:14:0101002:715">{{ form.kad_ids.value|default:'' }}</textarea>
+            <textarea name="kad_ids" id="id_kad_ids" rows="6" placeholder="86:14:0101002:715"></textarea>
             <p class="helptext">По одному номеру на строку</p>
         </div>
 
         <div class="field">
             <label for="id_radius_meters">Радиус поиска (м)</label>
-            <input type="number" name="radius_meters" id="id_radius_meters" value="{{ form.radius_meters.value|default:250 }}" min="10" max="5000">
+            <input type="number" name="radius_meters" id="id_radius_meters" value="250" min="10" max="5000">
         </div>
 
         <div class="field">
             <label for="id_area_limit">Мин. площадь ЗУ (м²)</label>
-            <input type="number" name="area_limit" id="id_area_limit" value="{{ form.area_limit.value|default:5 }}" min="0">
+            <input type="number" name="area_limit" id="id_area_limit" value="5" min="0">
         </div>
 
         <div class="field">
             <label for="id_min_intersection_percent">Порог пересечения (%)</label>
-            <input type="number" name="min_intersection_percent" id="id_min_intersection_percent" value="{{ form.min_intersection_percent.value|default:40 }}" min="1" max="100">
+            <input type="number" name="min_intersection_percent" id="id_min_intersection_percent" value="40" min="1" max="100">
         </div>
 
         <div class="field checkbox-field">
-            <input type="checkbox" name="draw_plots" id="id_draw_plots" {% if form.draw_plots.value %}checked{% endif %}>
+            <input type="checkbox" name="draw_plots" id="id_draw_plots">
             <label for="id_draw_plots">Создать визуализацию</label>
         </div>
 
         <div class="field checkbox-field">
-            <input type="checkbox" name="draw_kad" id="id_draw_kad" {% if form.draw_kad.value %}checked{% endif %}>
+            <input type="checkbox" name="draw_kad" id="id_draw_kad">
             <label for="id_draw_kad">Показывать номера на графиках</label>
         </div>
 
         <div class="button-row">
-            <button type="submit" class="btn btn-primary">🔍 Запустить анализ</button>
-            <button type="submit" name="reset" class="btn btn-secondary">↻ Сброс</button>
+            <button type="submit" class="btn btn-primary" id="submit-btn">🔍 Запустить</button>
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">↻ Сброс</button>
         </div>
     </form>
+    <div id="form-errors" style="display:none; margin-top:1rem;"></div>
 </div>
 {% endblock %}
 
 {% block results %}
-{% if results %}
-<div class="card summary-card">
-    <div class="summary-header">
-        <h2>📈 Результаты анализа</h2>
-        <span class="summary-badge {% if success_count == total_count %}badge-success{% else %}badge-partial{% endif %}">
-            ✓ {{ success_count }} из {{ total_count }} успешно
-        </span>
-    </div>
-</div>
+<!-- Статус анализа (появляется во время выполнения) -->
+<div id="status-area"></div>
 
-<div class="card">
-    <h3 class="card-title">📋 Сводка по участкам</h3>
-    <div class="table-responsive">
-        <table>
-            <thead>
-                <tr>
-                    <th>№</th>
-                    <th>Кадастровый номер</th>
-                    <th>Статус</th>
-                    <th>Соседей</th>
-                    <th>Отчёт</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for r in results %}
-                <tr class="{% if r.success %}row-success{% else %}row-error{% endif %}">
-                    <td>{{ forloop.counter }}</td>
-                    <td class="kad-number">{{ r.kad_id }}</td>
-                    <td>
-                        <span class="status-badge {% if r.success %}badge-success{% else %}badge-error{% endif %}">
-                            {{ r.message }}
-                        </span>
-                    </td>
-                    <td>{% if r.success %}{{ r.neighbors_count }}{% else %}—{% endif %}</td>
-                    <td>
-                        {% if r.report_filename %}
-                        <a href="{% url 'report_download' r.report_filename %}" class="btn btn-small btn-outline">
-                            📥 Скачать
-                        </a>
-                        {% else %}<span class="text-muted">—</span>{% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="card">
-    <h3 class="card-title">📜 Журнал выполнения</h3>
-    <div class="log">{% for line in logs %}{{ line }}
-{% endfor %}</div>
-</div>
-
-<!-- Текстовые отчёты -->
-{% for r in results %}
-    {% if r.report_text %}
-    <div class="card">
-        <div class="report-header">
-            <h3 class="card-title">📄 Отчёт: {{ r.kad_id }}</h3>
-            <button class="btn btn-small btn-copy" onclick="copyReport('report-{{ forloop.counter }}')">
-                📋 Копировать
-            </button>
-            <span id="feedback-{{ forloop.counter }}" class="copy-feedback">✓ Скопировано!</span>
-        </div>
-        <textarea id="report-{{ forloop.counter }}" class="report-textarea" rows="12" readonly>{{ r.report_text }}</textarea>
-    </div>
-    {% endif %}
-{% endfor %}
-
-<!-- Графики -->
-{% for r in results %}
-    {% if r.plot_filename %}
-    <div class="card">
-        <h3 class="card-title">📊 Визуализация: {{ r.kad_id }}</h3>
-        <div class="plot-container">
-            <img src="/{{ r.plot_filename }}" alt="График {{ r.kad_id }}" class="plot-image">
-        </div>
-    </div>
-    {% endif %}
-{% endfor %}
-{% else %}
-<div class="card" style="text-align:center;padding:3rem;">
-    <div style="font-size:3rem;margin-bottom:1rem;">📍</div>
-    <h3 style="color:var(--text-secondary);font-weight:500;">
-        Введите кадастровые номера и запустите анализ
-    </h3>
-    <p class="helptext" style="margin-top:0.5rem;">
-        Результаты появятся в этой панели
-    </p>
-</div>
-{% endif %}
+<!-- Результаты (появляются после завершения) -->
+<div id="results-area" style="display:none;"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function copyReport(elementId) {
-    const textarea = document.getElementById(elementId);
-    textarea.select();
-    textarea.setSelectionRange(0, 99999);
+let eventSource = null;
+
+document.getElementById('analysis-form').addEventListener('submit', function(e) {
+    e.preventDefault();
     
-    navigator.clipboard.writeText(textarea.value).then(() => {
-        const feedbackId = elementId.replace('report-', 'feedback-');
-        const feedback = document.getElementById(feedbackId);
-        feedback.classList.add('show');
-        setTimeout(() => feedback.classList.remove('show'), 2000);
-    }).catch(() => {
-        document.execCommand('copy');
-        const feedbackId = elementId.replace('report-', 'feedback-');
-        const feedback = document.getElementById(feedbackId);
-        feedback.classList.add('show');
-        setTimeout(() => feedback.classList.remove('show'), 2000);
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Обработка...';
+    
+    // Генерируем ID сессии
+    const sessionId = Date.now();
+    
+    // Показываем панель статуса
+    document.getElementById('status-area').innerHTML = `
+        <div class="card">
+            <h3>📋 Журнал выполнения</h3>
+            <div id="log-box" class="log" style="max-height:300px;overflow-y:auto;">⏳ Запуск...</div>
+            
+            <div id="progress-container" style="display:none; margin-top:1rem; padding:1rem; background:#1e293b; border-radius:8px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+                    <span id="progress-text" style="color:#fbbf24;">🔍 Поиск...</span>
+                    <span id="progress-percent" style="color:#fbbf24;">0%</span>
+                </div>
+                <div style="background:#334155;border-radius:9999px;height:8px;overflow:hidden;">
+                    <div id="progress-bar" style="background:linear-gradient(90deg,#fbbf24,#f59e0b);height:100%;width:0%;transition:width 0.3s;"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Подключаемся к SSE endpoint
+    eventSource = new EventSource(`/logs/${sessionId}/`);
+    console.log('📡 SSE подключен к /logs/' + sessionId);
+    
+    eventSource.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const logBox = document.getElementById('log-box');
+        
+        if (logBox) {
+            const time = new Date().toLocaleTimeString('ru-RU');
+            let color = '#fff';
+            if (data.type === 'error') color = '#f87171';
+            else if (data.type === 'success') color = '#4ade80';
+            else if (data.type === 'progress') color = '#fbbf24';
+            
+            logBox.innerHTML += `<span style="color:${color}">[${time}] ${data.message}</span><br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+        
+        // Обновляем прогресс-бар
+        const match = data.message.match(/\[(\d+)%\]/);
+        if (match) {
+            const pct = parseInt(match[1]);
+            const pbox = document.getElementById('progress-container');
+            const pbar = document.getElementById('progress-bar');
+            const pnum = document.getElementById('progress-percent');
+            if (pbox && pbar && pnum) {
+                pbox.style.display = 'block';
+                pbar.style.width = pct + '%';
+                pnum.textContent = pct + '%';
+            }
+        }
+    };
+    
+    eventSource.onerror = function() {
+        console.log('🔌 SSE отключен');
+        eventSource.close();
+    };
+    
+    // Отправляем форму через AJAX
+    const formData = new FormData(this);
+    
+    // 🔥 ИСПРАВЛЕНИЕ: Передаем sessionId на бэкенд
+    formData.append('session_id', sessionId);
+
+    fetch('.', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    })
+    // 🔥 ИСПРАВЛЕНИЕ: Парсим ответ как JSON
+    .then(r => r.json())
+    .then(data => {
+        // Теперь data - это объект {success: true, html: "..."}
+        if (data.success && data.html) {
+            const parser = new DOMParser();
+            // Парсим именно HTML-строку из поля data.html
+            const doc = parser.parseFromString(data.html, 'text/html');
+            const newResults = doc.querySelector('#results-area');
+
+            if (newResults && newResults.innerHTML.trim()) {
+                // Очищаем статус и вставляем результаты
+                document.getElementById('status-area').innerHTML = '';
+                document.getElementById('results-area').innerHTML = newResults.innerHTML;
+                document.getElementById('results-area').style.display = 'block';
+
+                // Закрываем SSE, так как задача выполнена
+                if (eventSource) eventSource.close();
+            }
+        } else if (data.error) {
+            alert('Ошибка: ' + data.error);
+        }
+
+        btn.disabled = false;
+        btn.textContent = '🔍 Запустить';
+    })
+    .catch(err => {
+        console.error('💥 Ошибка:', err);
+        document.getElementById('form-errors').style.display = 'block';
+        document.getElementById('form-errors').innerHTML = '<div class="errorlist"><li>Ошибка сети или парсинга: ' + err + '</li></div>';
+        btn.disabled = false;
+        btn.textContent = '🔍 Запустить';
+    });
+});
+
+function resetForm() {
+    document.getElementById('analysis-form').reset();
+    document.getElementById('status-area').innerHTML = '';
+    document.getElementById('results-area').innerHTML = '';
+    document.getElementById('results-area').style.display = 'none';
+    document.getElementById('form-errors').style.display = 'none';
+}
+
+function copyReport(id) {
+    const ta = document.getElementById(id);
+    ta.select();
+    navigator.clipboard.writeText(ta.value).then(() => {
+        const fb = document.getElementById(id.replace('report-', 'feedback-'));
+        fb.classList.add('show');
+        setTimeout(() => fb.classList.remove('show'), 2000);
     });
 }
 </script>

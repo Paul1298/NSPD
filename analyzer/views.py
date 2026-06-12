@@ -18,7 +18,11 @@ log_sessions: Dict[str, List[Dict]] = {}
 
 @csrf_exempt
 async def logs_stream(request, session_id: str):
-    """Async SSE endpoint для стриминга логов"""
+    """
+    Async SSE endpoint для стриминга логов.
+    Работает через Daphne (ASGI) без блокировки воркеров.
+    """
+
     async def event_generator():
         last_id = 0
         while True:
@@ -29,14 +33,14 @@ async def logs_stream(request, session_id: str):
                     yield f"data: {json.dumps(log_entry)}\n\n"
                     last_id += 1
             await asyncio.sleep(0.1)
-    
+
     response = StreamingHttpResponse(
         event_generator(),
         content_type='text/event-stream',
     )
+    # Не добавляем 'Connection' заголовок - ASGI сам обрабатывает
     response['Cache-Control'] = 'no-cache'
     response['X-Accel-Buffering'] = 'no'
-    response['Connection'] = 'keep-alive'
     return response
 
 
@@ -48,11 +52,16 @@ class IndexView(View):
 
     def post(self, request):
         form = AnalysisForm(request.POST)
-        
+
         if not form.is_valid():
             return JsonResponse({'success': False, 'error': str(form.errors)})
 
-        session_id = str(int(time.time() * 1000))
+        # 🔥 ИСПРАВЛЕНИЕ: Берем session_id из данных формы, а не генерируем новый
+        session_id = request.POST.get('session_id')
+        if not session_id:
+            # Фоллбэк, если фронтенд вдруг не прислал ID
+            session_id = str(int(time.time() * 1000))
+
         log_sessions[session_id] = []
 
         def log_callback(message, log_type='info'):
@@ -86,7 +95,6 @@ class IndexView(View):
             })
             return JsonResponse({'success': True, 'html': html})
 
-        # Обычный запрос
         return render(request, 'analyzer/index.html', {
             'form': form,
             'results': results,
