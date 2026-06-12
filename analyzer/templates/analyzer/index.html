@@ -16,39 +16,119 @@
             {{ form.kad_ids.errors }}
         </div>
 
-        <div class="field">
-            {{ form.radius_meters.label_tag }}
-            {{ form.radius_meters }}
-            {{ form.radius_meters.errors }}
+        <div class="field-row">
+            <div class="field">
+                {{ form.radius_meters.label_tag }}
+                {{ form.radius_meters }}
+                {% if form.radius_meters.help_text %}<p class="helptext">{{ form.radius_meters.help_text }}</p>{% endif %}
+                {{ form.radius_meters.errors }}
+            </div>
+
+            <div class="field">
+                {{ form.area_limit.label_tag }}
+                {{ form.area_limit }}
+                {% if form.area_limit.help_text %}<p class="helptext">{{ form.area_limit.help_text }}</p>{% endif %}
+                {{ form.area_limit.errors }}
+            </div>
+
+            <div class="field">
+                {{ form.min_intersection_percent.label_tag }}
+                {{ form.min_intersection_percent }}
+                {% if form.min_intersection_percent.help_text %}<p class="helptext">{{ form.min_intersection_percent.help_text }}</p>{% endif %}
+                {{ form.min_intersection_percent.errors }}
+            </div>
         </div>
 
-        <div class="field">
-            {{ form.area_limit.label_tag }}
-            {{ form.area_limit }}
-            {{ form.area_limit.errors }}
+        <div class="field-row">
+            <div class="field checkbox-field">
+                {{ form.draw_plots }}
+                {{ form.draw_plots.label_tag }}
+                {% if form.draw_plots.help_text %}<p class="helptext">{{ form.draw_plots.help_text }}</p>{% endif %}
+            </div>
+
+            <div class="field checkbox-field">
+                {{ form.draw_kad }}
+                {{ form.draw_kad.label_tag }}
+                {% if form.draw_kad.help_text %}<p class="helptext">{{ form.draw_kad.help_text }}</p>{% endif %}
+            </div>
         </div>
 
-        <div class="field">
-            {{ form.min_intersection_percent.label_tag }}
-            {{ form.min_intersection_percent }}
-            {{ form.min_intersection_percent.errors }}
+        <div class="button-row">
+            <button type="submit" name="analyze" class="btn btn-primary">
+                <span class="btn-icon">🔍</span> Запустить анализ
+            </button>
+            <button type="submit" name="reset" class="btn btn-secondary">
+                <span class="btn-icon">↻</span> Новый анализ
+            </button>
         </div>
-
-        <div class="field">
-            {{ form.draw_plots }}
-            {{ form.draw_plots.label_tag }}
-            {% if form.draw_plots.help_text %}<p class="helptext">{{ form.draw_plots.help_text }}</p>{% endif %}
-            {{ form.draw_plots.errors }}
-        </div>
-
-        <div class="field">
-            {{ form.draw_kad }}
-            {{ form.draw_kad.label_tag }}
-            {% if form.draw_kad.help_text %}<p class="helptext">{{ form.draw_kad.help_text }}</p>{% endif %}
-            {{ form.draw_kad.errors }}
-        </div>
-
-        <button type="submit">Запустить анализ</button>
     </form>
 </div>
+
+{% if results %}
+<div class="results-section">
+    <div class="card summary-card">
+        <div class="summary-header">
+            <h2>Результаты анализа</h2>
+            <span class="summary-badge {% if success_count == total_count %}badge-success{% else %}badge-partial{% endif %}">
+                {{ success_count }} из {{ total_count }} успешно
+            </span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 class="card-title">Участки</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Кадастровый номер</th>
+                        <th>Статус</th>
+                        <th>Соседей</th>
+                        <th>Отчёт</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in results %}
+                    <tr class="{% if result.success %}row-success{% else %}row-error{% endif %}">
+                        <td>{{ forloop.counter }}</td>
+                        <td class="kad-number">{{ result.kad_id }}</td>
+                        <td>
+                            <span class="status-badge {% if result.success %}badge-success{% else %}badge-error{% endif %}">
+                                {{ result.message }}
+                            </span>
+                        </td>
+                        <td>{% if result.success %}{{ result.neighbors_count }}{% else %}—{% endif %}</td>
+                        <td>
+                            {% if result.report_filename %}
+                            <a href="{% url 'report_download' result.report_filename %}" class="btn btn-small btn-outline">
+                                📄 Скачать
+                            </a>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 class="card-title">Журнал выполнения</h3>
+        <div class="log">{% for line in logs %}{{ line }}
+{% endfor %}</div>
+    </div>
+
+    {% for result in results %}
+    {% if result.plot_filename %}
+    <div class="card">
+        <h3 class="card-title">График: {{ result.kad_id }}</h3>
+        <div class="plot-container">
+            <img src="/{{ result.plot_filename }}" alt="График участка {{ result.kad_id }}" class="plot-image">
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

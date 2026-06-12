@@ -10,12 +10,35 @@ from .services import run_batch
 class IndexView(View):
     def get(self, request):
         form = AnalysisForm()
-        return render(request, 'analyzer/index.html', {'form': form})
+        return render(request, 'analyzer/index.html', {
+            'form': form,
+            'results': None,
+            'logs': None,
+            'success_count': 0,
+            'total_count': 0,
+        })
 
     def post(self, request):
         form = AnalysisForm(request.POST)
+
+        # Если нажата кнопка "Новый анализ" - просто показываем чистую форму
+        if 'reset' in request.POST:
+            return render(request, 'analyzer/index.html', {
+                'form': AnalysisForm(),
+                'results': None,
+                'logs': None,
+                'success_count': 0,
+                'total_count': 0,
+            })
+
         if not form.is_valid():
-            return render(request, 'analyzer/index.html', {'form': form})
+            return render(request, 'analyzer/index.html', {
+                'form': form,
+                'results': None,
+                'logs': None,
+                'success_count': 0,
+                'total_count': 0,
+            })
 
         results, logs = run_batch(
             kad_ids=form.cleaned_data['kad_ids'],
@@ -26,7 +49,7 @@ class IndexView(View):
             draw_kad=form.cleaned_data['draw_kad'],
         )
 
-        return render(request, 'analyzer/result.html', {
+        return render(request, 'analyzer/index.html', {
             'form': form,
             'results': results,
             'logs': logs,

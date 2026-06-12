@@ -14,18 +14,22 @@ class AnalysisForm(forms.Form):
         label='Радиус поиска (м)',
         min_value=10,
         max_value=5000,
-        initial=250,
+        initial=100,
+        help_text='Допустимый диапазон: от 10 до 5000 метров',
     )
     area_limit = forms.IntegerField(
         label='Мин. площадь ЗУ (м²)',
         min_value=0,
+        max_value=100,
         initial=5,
+        help_text='Участки меньшей площади будут исключены (0 — без ограничений)',
     )
     min_intersection_percent = forms.IntegerField(
         label='Порог пересечения сектора (%)',
         min_value=1,
         max_value=100,
-        initial=40,
+        initial=25,
+        help_text='Допустимый диапазон: от 1% до 100%',
     )
     draw_plots = forms.BooleanField(
         label='Создать визуализацию участков',

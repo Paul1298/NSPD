@@ -215,8 +215,8 @@ def plot_features_common(target, neighbors, search_circle_utm, radius_meters, sh
                                                markersize=6, label=label))
 
     # Размещаем легенду внутри графика в верхнем правом углу
-    plt.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1, 1),
-               fontsize=8, framealpha=0.9, borderpad=0.5)
+    # plt.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1, 1),
+    #            fontsize=8, framealpha=0.9, borderpad=0.5)
     plt.subplots_adjust(right=0.65)
     ax.set_xticks([])
     ax.set_yticks([])
