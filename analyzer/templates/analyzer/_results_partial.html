@@ -1,0 +1,58 @@
+{% if results %}
+<div class="card summary-card">
+    <div class="summary-header">
+        <h2>📈 Готово!</h2>
+        <span class="summary-badge {% if success_count == total_count %}badge-success{% else %}badge-partial{% endif %}">
+            ✓ {{ success_count }} из {{ total_count }} успешно
+        </span>
+    </div>
+</div>
+
+<div class="card">
+    <h3 class="card-title">📋 Сводка</h3>
+    <table>
+        <thead><tr><th>№</th><th>Кадастр</th><th>Статус</th><th>Соседей</th><th>Отчёт</th></tr></thead>
+        <tbody>
+            {% for r in results %}
+            <tr class="{% if r.success %}row-success{% else %}row-error{% endif %}">
+                <td>{{ forloop.counter }}</td>
+                <td class="kad-number">{{ r.kad_id }}</td>
+                <td><span class="status-badge {% if r.success %}badge-success{% else %}badge-error{% endif %}">{{ r.message }}</span></td>
+                <td>{% if r.success %}{{ r.neighbors_count }}{% else %}—{% endif %}</td>
+                <td>
+                    {% if r.report_filename %}
+                    <a href="{% url 'report_download' r.report_filename %}" class="btn btn-small btn-outline">📥 Скачать</a>
+                    {% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!--<div class="card">-->
+<!--    <h3 class="card-title">📜 Журнал</h3>-->
+<!--    <div class="log">{% for line in logs %}{{ line }}-->
+<!--{% endfor %}</div>-->
+<!--</div>-->
+
+{% for r in results %}
+    {% if r.report_text %}
+    <div class="card">
+        <div class="report-header">
+            <h3 class="card-title">📄 Отчёт: {{ r.kad_id }}</h3>
+            <button class="btn btn-small btn-copy" onclick="copyReport('report-{{ forloop.counter }}')">📋 Копировать</button>
+            <span id="feedback-{{ forloop.counter }}" class="copy-feedback">✓ Скопировано!</span>
+        </div>
+        <textarea id="report-{{ forloop.counter }}" class="report-textarea" rows="10" readonly>{{ r.report_text }}</textarea>
+    </div>
+    {% endif %}
+    
+    {% if r.plot_filename %}
+    <div class="card">
+        <h3 class="card-title">📊 График: {{ r.kad_id }}</h3>
+        <img src="/{{ r.plot_filename }}" style="max-width:100%;height:auto;">
+    </div>
+    {% endif %}
+{% endfor %}
+{% endif %}
