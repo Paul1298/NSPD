@@ -6,10 +6,29 @@
     <form id="analysis-form">
         {% csrf_token %}
 
-        <div class="field">
+        <!-- Переключатель режима -->
+        <div class="field" style="margin-bottom: 1rem;">
+            <label style="display:flex; gap:1rem; cursor:pointer;">
+                <label><input type="radio" name="input_mode" value="kad" checked onchange="toggleInputMode()"> 📍
+                    Кадастровые номера</label>
+                <label><input type="radio" name="input_mode" value="polygon" onchange="toggleInputMode()"> 📐 Свой
+                    полигон</label>
+            </label>
+        </div>
+
+        <div class="field" id="kad-field">
             <label for="id_kad_ids">Кадастровые номера</label>
             <textarea name="kad_ids" id="id_kad_ids" rows="6" placeholder="86:14:0101002:715"></textarea>
             <p class="helptext">По одному номеру на строку</p>
+        </div>
+
+        <div class="field" id="polygon-field" style="display:none;">
+            <label for="id_polygon_coordinates">Координаты полигона</label>
+            <textarea name="polygon_coordinates" id="id_polygon_coordinates" rows="6" placeholder="55.560255236, 37.892199320
+55.560271004, 37.892419993
+55.560249892, 37.892592375"></textarea>
+            <p class="helptext">Формат: <code>широта, долгота</code> (по одной паре на строку). Полигон будет замкнут
+                автоматически.</p>
         </div>
 
         <div class="field">
@@ -226,6 +245,19 @@
             fb.classList.add('show');
             setTimeout(() => fb.classList.remove('show'), 2000);
         });
+    }
+
+    function toggleInputMode() {
+        const mode = document.querySelector('input[name="input_mode"]:checked').value;
+        document.getElementById('kad-field').style.display = mode === 'kad' ? 'block' : 'none';
+        document.getElementById('polygon-field').style.display = mode === 'polygon' ? 'block' : 'none';
+
+        // Очищаем неактивное поле
+        if (mode === 'kad') {
+            document.getElementById('id_polygon_coordinates').value = '';
+        } else {
+            document.getElementById('id_kad_ids').value = '';
+        }
     }
 </script>
 {% endblock %}

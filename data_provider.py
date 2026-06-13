@@ -10,19 +10,34 @@ from shapely.ops import transform
 from geo_processor import get_distance_direction
 
 
-def process_target(target_feat: NspdFeature, coordinates):
-    with Nspd() as nspd:
+def process_target(target_feat: Optional[NspdFeature], coordinates=None):
+    """
+    Обрабатывает целевой участок. 
+    Если coordinates переданы, target_feat может быть None.
+    """
+    # Если передан полигон, создаем структуру без запроса к НСПД для самого таргета
+    if coordinates:
         target = {
             "feat": target_feat,
-            "kad_id": target_feat.properties.options.cad_num,
-            "short_id": ':'.join(target_feat.properties.options.cad_num.split(':')[2:]),
-            "permission": nspd.tab_permission_type(target_feat),
-            "address": target_feat.properties.options.readable_address,
-            "4326": target_feat.geometry.to_shape(),
+            "kad_id": "custom_polygon",
+            "short_id": "custom",
+            "permission": "custom",  # Для кастомного полигона нет типа разрешенного использования
+            "address": "Пользовательский полигон",
+            "4326": Polygon(coordinates),
         }
+    else:
+        if not target_feat:
+            raise ValueError("Должен быть передан либо target_feat, либо coordinates")
 
-    if coordinates:
-        target["4326"] = Polygon(coordinates)
+        with Nspd() as nspd:
+            target = {
+                "feat": target_feat,
+                "kad_id": target_feat.properties.options.cad_num,
+                "short_id": ':'.join(target_feat.properties.options.cad_num.split(':')[2:]),
+                "permission": nspd.tab_permission_type(target_feat),
+                "address": target_feat.properties.options.readable_address,
+                "4326": target_feat.geometry.to_shape(),
+            }
 
     gdf = gpd.GeoDataFrame(
         {'id': [1], 'geometry': [target["4326"]]},
@@ -74,12 +89,6 @@ def process_neighbors(
         min_intersection_percent=5,
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
 ) -> List[Dict]:
-    """
-    Обрабатывает соседние участки
-
-    Args:
-        progress_callback: Функция callback(current, total, message) для обновления прогресса
-    """
     neighbor_feats = nspd_func(
         crs_utm_to_4326(search_circle_utm),
         NspdFeature.by_title("Земельные участки из ЕГРН"),
@@ -97,17 +106,24 @@ def process_neighbors(
     processed_neighbors = []
     with Nspd() as nspd:
         for idx, neighbor_feat in enumerate(neighbor_feats, start=1):
-            if neighbor_feat.properties.options.cad_num == target["kad_id"]:
-                if progress_callback:
-                    progress_callback(idx, total_neighbors, f"Пропуск целевого участка")
-                continue
+            # 🔥 ИСПРАВЛЕНИЕ: Геометрическая проверка вместо проверки по kad_id
+            neighbor_geom_utm = crs_4326_to_utm(neighbor_feat.geometry.to_shape())
+
+            # Проверяем, является ли сосед тем же самым полигоном (пересечение > 99% площади)
+            if target["utm"].area > 0:
+                intersection_area = target["utm"].intersection(neighbor_geom_utm).area
+                if intersection_area / target["utm"].area > 0.99:
+                    if progress_callback:
+                        progress_callback(idx, total_neighbors, "Пропуск целевого полигона")
+                    continue
 
             if (
                     neighbor_feat.properties.options.specified_area and
                     neighbor_feat.properties.options.specified_area < area_limit
             ):
                 if progress_callback:
-                    progress_callback(idx, total_neighbors, f"Пропуск {neighbor_feat.properties.options.cad_num} (малая площадь)")
+                    progress_callback(idx, total_neighbors,
+                                      f"Пропуск {neighbor_feat.properties.options.cad_num} (малая площадь)")
                 continue
 
             neighbor = {
@@ -116,11 +132,8 @@ def process_neighbors(
                 "short_id": ':'.join(neighbor_feat.properties.options.cad_num.split(':')[2:]),
                 'permission': nspd.tab_permission_type(neighbor_feat),
                 "4326": neighbor_feat.geometry.to_shape(),
-                "utm": crs_4326_to_utm(neighbor_feat.geometry.to_shape()),
+                "utm": neighbor_geom_utm,
             }
-
-            # if progress_callback:
-            #     progress_callback(idx, total_neighbors, f"Обработка {neighbor['short_id']}...")
 
             distance, direction = get_distance_direction(
                 target["utm"],
@@ -137,6 +150,7 @@ def process_neighbors(
                 progress_callback(idx, total_neighbors, f"✓ {neighbor['short_id']} добавлен")
 
     if progress_callback:
-        progress_callback(total_neighbors, total_neighbors, f"Обработано {len(processed_neighbors)} из {total_neighbors}")
+        progress_callback(total_neighbors, total_neighbors,
+                          f"Обработано {len(processed_neighbors)} из {total_neighbors}")
 
     return sort_neighbors_by_direction(processed_neighbors)

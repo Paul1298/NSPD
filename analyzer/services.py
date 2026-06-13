@@ -26,52 +26,77 @@ def run_batch_with_callback(
         draw_plots: bool = False,
         draw_kad: bool = False,
         log_callback: Optional[Callable[[str, str], None]] = None,
+        polygon_coordinates: Optional[List[List[float]]] = None,  # <-- НОВЫЙ АРГУМЕНТ
 ) -> Tuple[List[ParcelResult], List[str]]:
-    """
-    Запускает анализ с callback для логирования в реальном времени
-
-    Args:
-        log_callback: Функция callback(message, type) где type: 'info', 'progress', 'success', 'error'
-    """
     results = []
     logs = []
     figsize = (12, 8)
 
     def log(message: str, log_type: str = 'info'):
-        """Внутренняя функция логирования"""
         logs.append(message)
         if log_callback:
             log_callback(message, log_type)
 
-    with Nspd() as nspd:
-        total = len(kad_ids)
-        log(f'🚀 Запуск анализа {total} участок(ов)...', 'info')
+    # Если передан полигон, обрабатываем только его
+    if polygon_coordinates:
+        log(f'🚀 Запуск анализа пользовательского полигона...', 'info')
 
-        for index, kad_id in enumerate(kad_ids, start=1):
-            log(f'{"="*60}', 'info')
-            log(f'▶️ [{index}/{total}] Начало обработки участка {kad_id}', 'progress')
+        target, crs_4326_to_utm, crs_utm_to_4326 = process_target(None, polygon_coordinates)
+        search_circle_utm = search_area(target, radius_meters)
 
-            result = _analyze_one(
-                nspd,
-                kad_id,
-                radius_meters,
-                area_limit,
-                min_intersection_percent,
-                log,
-                draw_plots,
-                draw_kad,
-                figsize,
-            )
-            results.append(result)
+        result = _analyze_one(
+            target, search_circle_utm, crs_4326_to_utm, crs_utm_to_4326,
+            radius_meters, area_limit, min_intersection_percent,
+            log, draw_plots, draw_kad, figsize
+        )
+        results.append(result)
 
-            if result.success:
-                log(f'✅ [{index}/{total}] Участок {kad_id} завершён успешно. Найдено соседей: {result.neighbors_count}', 'success')
-            else:
-                log(f'❌ [{index}/{total}] Участок {kad_id} не обработан: {result.message}', 'error')
+        if result.success:
+            log(f'✅ Анализ полигона завершён успешно. Найдено соседей: {result.neighbors_count}', 'success')
+        else:
+            log(f'❌ Анализ полигона не удался: {result.message}', 'error')
+
+    else:
+        # Стандартная логика для кадастровых номеров
+        with Nspd() as nspd:
+            total = len(kad_ids)
+            log(f'🚀 Запуск анализа {total} участок(ов)...', 'info')
+
+            for index, kad_id in enumerate(kad_ids, start=1):
+                log(f'{"=" * 60}', 'info')
+                log(f'▶️ [{index}/{total}] Начало обработки участка {kad_id}', 'progress')
+
+                target_feat = nspd.find(kad_id)
+                if not target_feat:
+                    log(f'  ⚠️ Участок {kad_id} не найден в НСПД.', 'error')
+                    results.append(ParcelResult(kad_id=kad_id, success=False, message='Не найден'))
+                    continue
+
+                target, crs_4326_to_utm, crs_utm_to_4326 = process_target(target_feat, None)
+                search_circle_utm = search_area(target, radius_meters)
+
+                result = _analyze_one(
+                    nspd,
+                    kad_id,
+                    radius_meters,
+                    area_limit,
+                    min_intersection_percent,
+                    log,
+                    draw_plots,
+                    draw_kad,
+                    figsize,
+                )
+                results.append(result)
+
+                if result.success:
+                    log(f'✅ [{index}/{total}] Участок {kad_id} завершён успешно. Найдено соседей: {result.neighbors_count}',
+                        'success')
+                else:
+                    log(f'❌ [{index}/{total}] Участок {kad_id} не обработан: {result.message}', 'error')
 
     success_count = sum(1 for r in results if r.success)
-    log(f'{"="*60}', 'info')
-    log(f'🎉 Анализ завершён: {success_count} из {total} участков успешно.', 'success')
+    log(f'{"=" * 60}', 'info')
+    log(f'🎉 Анализ завершён: {success_count} из {len(results)} успешно.', 'success')
 
     return results, logs
 
@@ -103,7 +128,8 @@ def _analyze_one(
         """Callback для обновления прогресса поиска соседей"""
         if total > 0:
             percent = int((current / total) * 100)
-            log(f'  📊 [{percent}%] {message}', 'progress')
+            if percent % 5 == 0:
+                log(f'  📊 [{percent}%] {message}', 'progress')
         else:
             log(f'  📊 {message}', 'progress')
 

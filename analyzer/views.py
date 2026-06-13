@@ -110,17 +110,23 @@ class IndexView(View):
                 'timestamp': time.time(),
             })
 
+        print("!!!", form.cleaned_data['kad_ids'])
+
+        kad_ids_raw = form.cleaned_data.get('kad_ids', '')
+        kad_ids = [k.strip() for k in kad_ids_raw.split('\n') if k.strip()] if kad_ids_raw else []
+
         # Функция, которая будет запущена в фоновом потоке
         def run_task():
             try:
                 results, logs = run_batch_with_callback(
-                    kad_ids=form.cleaned_data['kad_ids'],
+                    kad_ids=kad_ids,
                     radius_meters=form.cleaned_data['radius_meters'],
                     area_limit=form.cleaned_data['area_limit'],
                     min_intersection_percent=form.cleaned_data['min_intersection_percent'],
                     draw_plots=form.cleaned_data['draw_plots'],
                     draw_kad=form.cleaned_data['draw_kad'],
                     log_callback=log_callback,
+                    polygon_coordinates=form.cleaned_data.get('parsed_polygon'),  # <-- Передаем полигон
                 )
 
                 # Сохраняем результаты для последующего GET-запроса
