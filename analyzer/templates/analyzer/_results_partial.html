@@ -9,6 +9,12 @@
 </div>
 
 <div class="card">
+    <h3 class="card-title">📜 Журнал</h3>
+    <div class="log">{% for line in logs %}{{ line }}
+{% endfor %}</div>
+</div>
+
+<div class="card">
     <h3 class="card-title">📋 Сводка</h3>
     <table>
         <thead><tr><th>№</th><th>Кадастр</th><th>Статус</th><th>Соседей</th><th>Отчёт</th></tr></thead>
@@ -30,11 +36,7 @@
     </table>
 </div>
 
-<!--<div class="card">-->
-<!--    <h3 class="card-title">📜 Журнал</h3>-->
-<!--    <div class="log">{% for line in logs %}{{ line }}-->
-<!--{% endfor %}</div>-->
-<!--</div>-->
+
 
 {% for r in results %}
     {% if r.report_text %}
