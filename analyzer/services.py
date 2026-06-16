@@ -124,11 +124,18 @@ def _analyze_one(
     target, crs_4326_to_utm, crs_utm_to_4326 = process_target(target_feat, [])
     search_circle_utm = search_area(target, radius_meters)
 
-    def progress_callback(current: int, total: int, message: str):
-        """Callback для обновления прогресса поиска соседей"""
+    def progress_callback(current: int, total: int, message: str, important: bool = False):
+        """Callback для обновления прогресса поиска соседей
+
+        Args:
+            current: текущий прогресс
+            total: всего элементов
+            message: сообщение
+            important: если True, сообщение логируется всегда, иначе только кратно 5%
+        """
         if total > 0:
             percent = int((current / total) * 100)
-            if percent % 5 == 0:
+            if important or percent % 5 == 0:
                 log(f'  📊 [{percent}%] {message}', 'progress')
         else:
             log(f'  📊 {message}', 'progress')

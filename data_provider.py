@@ -87,7 +87,7 @@ def process_neighbors(
         crs_utm_to_4326,
         area_limit=2,
         min_intersection_percent=5,
-        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+        progress_callback= None,
 ) -> List[Dict]:
     neighbor_feats = nspd_func(
         crs_utm_to_4326(search_circle_utm),
@@ -96,12 +96,12 @@ def process_neighbors(
 
     if not neighbor_feats:
         if progress_callback:
-            progress_callback(0, 0, "Соседи не найдены")
+            progress_callback(0, 0, "Соседи не найдены", important=True)
         return []
 
     total_neighbors = len(neighbor_feats)
     if progress_callback:
-        progress_callback(0, total_neighbors, f"Найдено {total_neighbors} кандидатов на обработку")
+        progress_callback(0, total_neighbors, f"Найдено {total_neighbors} кандидатов на обработку", important=True)
 
     processed_neighbors = []
     with Nspd() as nspd:
@@ -113,8 +113,8 @@ def process_neighbors(
             if target["utm"].area > 0:
                 intersection_area = target["utm"].intersection(neighbor_geom_utm).area
                 if intersection_area / target["utm"].area > 0.99:
-                    if progress_callback:
-                        progress_callback(idx, total_neighbors, "Пропуск целевого полигона")
+                    # if progress_callback:
+                    #     progress_callback(idx, total_neighbors, "Пропуск целевого полигона")
                     continue
 
             if (
@@ -122,8 +122,11 @@ def process_neighbors(
                     neighbor_feat.properties.options.specified_area < area_limit
             ):
                 if progress_callback:
-                    progress_callback(idx, total_neighbors,
-                                      f"Пропуск {neighbor_feat.properties.options.cad_num} (малая площадь)")
+                    progress_callback(idx,
+                                      total_neighbors,
+                                      f"Пропуск {neighbor_feat.properties.options.cad_num} (малая площадь)",
+                                      important=True,
+                                      )
                 continue
 
             neighbor = {
@@ -151,6 +154,6 @@ def process_neighbors(
 
     if progress_callback:
         progress_callback(total_neighbors, total_neighbors,
-                          f"Обработано {len(processed_neighbors)} из {total_neighbors}")
+                          f"Обработано {len(processed_neighbors)} из {total_neighbors}", important=True)
 
     return sort_neighbors_by_direction(processed_neighbors)

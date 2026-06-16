@@ -110,8 +110,6 @@ class IndexView(View):
                 'timestamp': time.time(),
             })
 
-        print("!!!", form.cleaned_data['kad_ids'])
-
         kad_ids_raw = form.cleaned_data.get('kad_ids', '')
         kad_ids = [k.strip() for k in kad_ids_raw.split('\n') if k.strip()] if kad_ids_raw else []
 
