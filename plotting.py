@@ -2,7 +2,7 @@ import math
 import os
 
 import matplotlib
-matplotlib.use('TkAgg') # Явное указание бэкенда
+matplotlib.use('Agg') # Явное указание бэкенда
 import matplotlib.pyplot as plt
 import shapely
 import shapely.plotting
