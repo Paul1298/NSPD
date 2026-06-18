@@ -7,7 +7,7 @@ from pyproj import Transformer, CRS
 from shapely import Polygon
 from shapely.ops import transform
 
-from geo_processor import get_distance_direction
+from geo_processor import get_direction_distance
 
 
 def process_target(target_feat: Optional[NspdFeature], coordinates=None):
@@ -72,9 +72,9 @@ def sort_neighbors_by_direction(neighbors_list: list[dict]) -> list[dict]:
     return sorted(
         neighbors_list,
         key=lambda neighbor: (
-            direction_map.get(neighbor['direction'].split(', ')[0], len(all_directions)),
-            len(neighbor['direction'].split(', ')),
-            neighbor['distance']
+            direction_map.get(neighbor['dir_dist'][0][0].split(', ')[0], len(all_directions)),
+            len(neighbor['dir_dist'][0][0].split(', ')),
+            neighbor['dir_dist'][0][1]
         )
     )
 
@@ -88,6 +88,7 @@ def process_neighbors(
         area_limit=2,
         min_intersection_percent=5,
         progress_callback= None,
+        merge_directions: bool = True,
 ) -> List[Dict]:
     neighbor_feats = nspd_func(
         crs_utm_to_4326(search_circle_utm),
@@ -138,14 +139,15 @@ def process_neighbors(
                 "utm": neighbor_geom_utm,
             }
 
-            distance, direction = get_distance_direction(
+            dir_dist = get_direction_distance(
                 target["utm"],
                 neighbor["utm"],
                 search_circle_utm,
                 min_intersection_percent,
+                merge_directions=merge_directions,
             )
-            neighbor["distance"] = distance
-            neighbor["direction"] = direction
+
+            neighbor["dir_dist"] = dir_dist
 
             processed_neighbors.append(neighbor)
 

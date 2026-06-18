@@ -22,21 +22,49 @@ def format_direction_string(full_direction_str: str) -> str:
     return f"с {', '.join(cores)} сторон"
 
 
-def generate_report(target, aoi_neighbors) -> str:
+def generate_report(
+        target,
+        neighbours,
+        merge_directions=True,
+) -> str:
     """
     Формирует отчет, группируя соседей с одинаковым набором направлений.
     Каждый сосед упоминается только один раз.
 
     Args:
         target: Словарь с данными о целевом участке.
-        aoi_neighbors (list[dict]): Список словарей с данными о соседних участках.
+        neighbours (list[dict]): Список словарей с данными о соседних участках.
+        merge_directions:
     """
     # --- 1. Подготовка ---
+    # Разобьём каждого соседа как отдельного
+
+    aoi_neighbors = []
+    print("len(neighbours)",len(neighbours))
+    for neighbor in neighbours:
+        for direction, distance in neighbor["dir_dist"]:
+            fake_neighbour = neighbor.copy()
+            fake_neighbour['direction'] = direction
+            fake_neighbour['distance'] = distance
+            aoi_neighbors.append(fake_neighbour)
+
+    print("len(aoi_neighbors)",len(aoi_neighbors))
+
+    from collections import Counter
+
+    # Count frequencies and filter keys with a count > 1
+    non_unique = [item for item, count in Counter([x["kad_id"] for x in aoi_neighbors]).items() if count > 1]
+
+    print(non_unique)
+    from pprint import pprint
+    pprint([(x["kad_id"], x["direction"], x["distance"]) for x in aoi_neighbors])
+
     neighbors_by_direction = {}
     for neighbor in aoi_neighbors:
         directions = neighbor['direction'].split(', ')
         for direction in directions:
-            if direction == 'не опознано': continue
+            if direction == 'не опознано':
+                continue
             if direction not in neighbors_by_direction:
                 neighbors_by_direction[direction] = []
             neighbors_by_direction[direction].append(neighbor)
@@ -99,30 +127,27 @@ def generate_report(target, aoi_neighbors) -> str:
 
                 permission_str = neighbor['permission'][0] if neighbor.get('permission') else "не определено"
 
-                full_direction_str = format_direction_string(full_direction_str)
+                full_direction_str_formatted = format_direction_string(full_direction_str)
                 if i == 0:
                     # Первая строка в группе получает полный заголовок
                     line = (
-                        f"\n{full_direction_str} – {distance_str} расположен ЗУ с КН {neighbor['kad_id']},"
+                        f"\n{full_direction_str_formatted} – {distance_str} расположен ЗУ с КН {neighbor['kad_id']},"
                         f" разрешенное использование – {permission_str}."
                     )
                 else:
-                    # Последующие строки получают отступ вместо заголовка
-                    # Это создает визуальный блок, как в эталоне
-                    # indent = " " * len(full_direction_str)
                     line = (
                         f"– {distance_str} расположен ЗУ с КН {neighbor['kad_id']},"
                         f" разрешенное использование – {permission_str}."
                     )
 
                 report_lines.append(line)
-                processed_neighbor_ids.add(neighbor['kad_id'])
+                if merge_directions:
+                    processed_neighbor_ids.add(neighbor['kad_id'])
 
     # --- 4. Сохранение ---
     final_report_text = "\n".join(report_lines)
 
     name = f'reports{os.path.sep}report_{target["kad_id"].replace(":", "_")}.txt'
-    # name = f'report_test.txt'
     with open(name, 'w', encoding='utf-8') as f:
         f.write(final_report_text)
     print(f"Отчет сохранен в {name}")

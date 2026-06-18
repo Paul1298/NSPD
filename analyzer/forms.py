@@ -22,6 +22,7 @@ class AnalysisForm(forms.Form):
     min_intersection_percent = forms.IntegerField(initial=40, min_value=1, max_value=100)
     draw_plots = forms.BooleanField(required=False)
     draw_kad = forms.BooleanField(required=False)
+    merge_directions = forms.BooleanField(required=False, initial=True)
 
     def clean(self):
         cleaned_data = super().clean()

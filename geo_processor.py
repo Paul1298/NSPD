@@ -67,51 +67,78 @@ def get_sectors(search_circle_utm: Polygon) -> dict[str, Polygon]:
     return sectors
 
 
-def get_direction(
+def calc_direction_distance(
+        target_poly: Polygon,
         neighbor_poly: Polygon,
         search_circle_utm: Polygon,
         sectors: dict[str, Polygon],
         min_intersection_percent: int = 5,
-) -> str:
+) -> list[tuple[str, int]]:
     """
     Определяет, с какими из готовых секторов пересекается полигон соседа.
 
     Args:
+        :param target_poly: Целевой полигон (объект ОНВ)
         :param neighbor_poly: Полигон соседа.
         :param search_circle_utm:
         :param sectors: (dict[str, Polygon]): Словарь с полигонами секторов.
         :param min_intersection_percent:
 
     Returns:
-        str: Строка с перечислением направлений через запятую.
+        list[tuple[str, int]]: Список кортежей (направление, расстояние_до_сектора).
     """
     detected_directions = []
     neighbor_area = neighbor_poly.intersection(search_circle_utm).area
+    # neighbor_centroid = neighbor_poly.centroid
 
     for direction_name, sector_poly in sectors.items():
         if sector_poly.intersects(neighbor_poly):
-            intersection_area = sector_poly.intersection(neighbor_poly).area
+            neighbor_in_sector_poly = sector_poly.intersection(neighbor_poly)
+
+            intersection_area = neighbor_in_sector_poly.area
             intersection_percent = (intersection_area / neighbor_area) * 100
 
             if intersection_percent >= float(min_intersection_percent):
-                detected_directions.append(direction_name)
+                distance_to_sector = int(target_poly.distance(neighbor_in_sector_poly))
+                detected_directions.append((direction_name, distance_to_sector))
 
-    return ', '.join(detected_directions) if detected_directions else "не опознано"
+    return detected_directions if detected_directions else [("не опознано", 0)]
 
 
-def get_distance_direction(
+def get_direction_distance(
         target_feat_utm,
         neighbor_feat_utm,
         search_circle_utm: Polygon,
         min_intersection_percent,
+        merge_directions: bool = True,
 ):
-    distance = int(
-        shapely.distance(target_feat_utm, neighbor_feat_utm))
-    direction = get_direction(
+    """
+    Определяет направления и расстояния до соседа.
+
+    Args:
+        target_feat_utm: Целевой участок в UTM.
+        neighbor_feat_utm: Соседний участок в UTM.
+        search_circle_utm: Круг поиска.
+        min_intersection_percent: Минимальный процент пересечения.
+        merge_directions: Если True, объединяет направления с минимальным расстоянием.
+                         Если False, возвращает список кортежей (направление, расстояние).
+
+    Returns:
+        список кортежей [(направление, расстояние), ...]
+    """
+    sectors = get_sectors(search_circle_utm)
+    directions_with_distances = calc_direction_distance(
+        target_feat_utm,
         neighbor_feat_utm,
         search_circle_utm,
-        get_sectors(search_circle_utm),
+        sectors,
         min_intersection_percent,
     )
 
-    return distance, direction
+    if merge_directions:
+        min_distance = min(dist for direct, dist in directions_with_distances)
+        merged_direction_str = ', '.join([direct for direct, dist in directions_with_distances])
+
+        return [(merged_direction_str, int(min_distance))]
+    else:
+        return directions_with_distances

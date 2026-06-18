@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Callable
+from typing import List, Optional, Tuple, Callable, Any
 
 from pynspd import Nspd
 
@@ -26,7 +26,8 @@ def run_batch_with_callback(
         draw_plots: bool = False,
         draw_kad: bool = False,
         log_callback: Optional[Callable[[str, str], None]] = None,
-        polygon_coordinates: Optional[List[List[float]]] = None,  # <-- НОВЫЙ АРГУМЕНТ
+        polygon_coordinates: Optional[List[List[float]]] = None,
+        merge_directions: bool = True,
 ) -> Tuple[List[ParcelResult], List[str]]:
     results = []
     logs = []
@@ -45,9 +46,19 @@ def run_batch_with_callback(
         search_circle_utm = search_area(target, radius_meters)
 
         result = _analyze_one(
-            target, search_circle_utm, crs_4326_to_utm, crs_utm_to_4326,
-            radius_meters, area_limit, min_intersection_percent,
-            log, draw_plots, draw_kad, figsize
+            nspd=None,
+            kad_id="custom_polygon",
+            radius_meters=radius_meters,
+            area_limit=area_limit,
+            min_intersection_percent=min_intersection_percent,
+            log=log,
+            draw_plots=draw_plots,
+            draw_kad=draw_kad,
+            figsize=figsize,
+            merge_directions=merge_directions,
+            target_override=target,
+            crs_override=(crs_4326_to_utm, crs_utm_to_4326),
+            search_circle_override=search_circle_utm,
         )
         results.append(result)
 
@@ -85,6 +96,7 @@ def run_batch_with_callback(
                     draw_plots,
                     draw_kad,
                     figsize,
+                    merge_directions=merge_directions,
                 )
                 results.append(result)
 
@@ -102,7 +114,7 @@ def run_batch_with_callback(
 
 
 def _analyze_one(
-        nspd: Nspd,
+        nspd: Optional[Nspd],
         kad_id: str,
         radius_meters: int,
         area_limit: int,
@@ -111,18 +123,28 @@ def _analyze_one(
         draw_plots: bool = False,
         draw_kad: bool = False,
         figsize: tuple = (12, 8),
+        merge_directions: bool = True,
+        target_override: Optional[dict] = None,
+        crs_override: Optional[tuple] = None,
+        search_circle_override: Optional[Any] = None,
 ) -> ParcelResult:
     log(f'  🔍 Поиск участка {kad_id} в НСПД...', 'progress')
 
-    target_feat = nspd.find(kad_id)
-    if not target_feat:
-        message = f'Участок {kad_id} не найден в НСПД.'
-        log(f'  ⚠️ {message}', 'error')
-        return ParcelResult(kad_id=kad_id, success=False, message=message)
+    # Используем переданные параметры или получаем из НСПД
+    if target_override and crs_override and search_circle_override:
+        target = target_override
+        crs_4326_to_utm, crs_utm_to_4326 = crs_override
+        search_circle_utm = search_circle_override
+    else:
+        target_feat = nspd.find(kad_id)
+        if not target_feat:
+            message = f'Участок {kad_id} не найден в НСПД.'
+            log(f'  ⚠️ {message}', 'error')
+            return ParcelResult(kad_id=kad_id, success=False, message=message)
 
-    log(f'  ✓ Участок найден, обработка геометрии...', 'info')
-    target, crs_4326_to_utm, crs_utm_to_4326 = process_target(target_feat, [])
-    search_circle_utm = search_area(target, radius_meters)
+        log(f'  ✓ Участок найден, обработка геометрии...', 'info')
+        target, crs_4326_to_utm, crs_utm_to_4326 = process_target(target_feat, [])
+        search_circle_utm = search_area(target, radius_meters)
 
     def progress_callback(current: int, total: int, message: str, important: bool = False):
         """Callback для обновления прогресса поиска соседей
@@ -150,11 +172,16 @@ def _analyze_one(
         area_limit,
         min_intersection_percent,
         progress_callback=progress_callback,
+        merge_directions=merge_directions,
     )
     log(f'  ✓ Найдено соседей: {len(processed_neighbors)}', 'info')
 
     log(f'  📄 Генерация текстового отчёта...', 'progress')
-    report_path, report_text = generate_report(target, processed_neighbors)
+    report_path, report_text = generate_report(
+        target,
+        processed_neighbors,
+        merge_directions=merge_directions,
+    )
     report_filename = report_path.split('/')[-1].split('\\')[-1]
     log(f'  ✓ Отчёт сохранён: {report_filename}', 'success')
 

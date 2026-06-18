@@ -123,6 +123,7 @@ class IndexView(View):
                     min_intersection_percent=form.cleaned_data['min_intersection_percent'],
                     draw_plots=form.cleaned_data['draw_plots'],
                     draw_kad=form.cleaned_data['draw_kad'],
+                    merge_directions=form.cleaned_data['merge_directions'],
                     log_callback=log_callback,
                     polygon_coordinates=form.cleaned_data.get('parsed_polygon'),  # <-- Передаем полигон
                 )

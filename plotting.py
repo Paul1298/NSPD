@@ -149,18 +149,18 @@ def plot_features_common(target, neighbors, search_circle_utm, radius_meters, sh
     plt.plot(*target["utm"].exterior.xy, color='blue', linestyle='-')
 
     # Группируем соседей по направлениям для компактной легенды
-    neighbor_by_direction = {}
-    for neighbor in neighbors:
-        direction = neighbor["direction"].split(',')[0].strip()
-        if direction not in neighbor_by_direction:
-            neighbor_by_direction[direction] = []
-        neighbor_by_direction[direction].append(neighbor)
+    # neighbor_by_direction = {}
+    # for neighbor in neighbors:
+    #     direction = neighbor["direction"].split(',')[0].strip()
+    #     if direction not in neighbor_by_direction:
+    #         neighbor_by_direction[direction] = []
+    #     neighbor_by_direction[direction].append(neighbor)
 
     # Отрисовка соседних участков
     for neighbor in neighbors:
         shapely.plotting.plot_polygon(neighbor["utm"], add_points=False)
 
-        direction = neighbor["direction"]
+        direction = neighbor["dir_dist"][0][0]
         color = color_map.get(direction.split(',')[0], 'gray')
 
         if len(direction.split(',')) > 1:
@@ -201,18 +201,18 @@ def plot_features_common(target, neighbors, search_circle_utm, radius_meters, sh
     legend_elements.append(plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='blue',
                                        markersize=8, label=f'{target["short_id"]} Целевой участок'))
 
-    # Группированные направления
-    for direction in directions:
-        if direction in neighbor_by_direction:
-            color = color_map.get(direction, 'gray')
-            count = len(neighbor_by_direction[direction])
-            label = f'{direction}: {count} ({", ".join([n["short_id"] for n in neighbor_by_direction[direction][:3]])}'
-            if count > 3:
-                label += f' +{count-3} др.)'
-            else:
-                label += ')'
-            legend_elements.append(plt.Line2D([0], [0], marker='s', color='w', markerfacecolor=color,
-                                               markersize=6, label=label))
+    # # Группированные направления
+    # for direction in directions:
+    #     if direction in neighbor_by_direction:
+    #         color = color_map.get(direction, 'gray')
+    #         count = len(neighbor_by_direction[direction])
+    #         label = f'{direction}: {count} ({", ".join([n["short_id"] for n in neighbor_by_direction[direction][:3]])}'
+    #         if count > 3:
+    #             label += f' +{count-3} др.)'
+    #         else:
+    #             label += ')'
+    #         legend_elements.append(plt.Line2D([0], [0], marker='s', color='w', markerfacecolor=color,
+    #                                            markersize=6, label=label))
 
     # Размещаем легенду внутри графика в верхнем правом углу
     # plt.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1, 1),
