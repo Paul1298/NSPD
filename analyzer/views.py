@@ -24,6 +24,7 @@ async def logs_stream(request, session_id: str):
     Async SSE endpoint для стриминга логов.
     Работает через Daphne (ASGI) без блокировки воркеров.
     """
+
     async def event_generator():
         last_id = 0
         while True:
@@ -158,7 +159,7 @@ class IndexView(View):
 
 class ReportDownloadView(View):
     def get(self, request, filename):
-        if not filename.startswith('report_') or not filename.endswith('.txt'):
+        if not filename.startswith('report_') or not (filename.endswith('.txt') or filename.endswith('.docx')):
             raise Http404
         filepath = settings.REPORTS_DIR / filename
         if not filepath.is_file():

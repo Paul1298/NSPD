@@ -190,7 +190,7 @@ def plot_features_common(target, neighbors, search_circle_utm, radius_meters, sh
         maxy + radius_meters * coef
     )
 
-    plt.title(f'Участки и их взаиморасположение ({target["short_id"]})', fontsize=12)
+    plt.title(f'Участки и их взаиморасположение ({target["kad_id"]})', fontsize=12)
     plt.xlabel('Координата X', fontsize=10)
     plt.ylabel('Координата Y', fontsize=10)
 
