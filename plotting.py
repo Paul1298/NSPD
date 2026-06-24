@@ -1,8 +1,8 @@
 import math
-import os
 
 import matplotlib
-matplotlib.use('Agg') # Явное указание бэкенда
+
+matplotlib.use('Agg')  # Явное указание бэкенда
 import matplotlib.pyplot as plt
 import shapely
 import shapely.plotting
@@ -71,7 +71,8 @@ def plot_features(target, neighbors, search_circle_utm, radius_meters, should_dr
     plt.show()
 
 
-def plot_features_to_file(target, neighbors, search_circle_utm, radius_meters, should_draw_kad, kad_id, figsize=(12, 8)):
+def plot_features_to_file(target, neighbors, search_circle_utm, radius_meters, should_draw_kad, kad_id,
+                          figsize=(12, 8)):
     """
     Сохраняет график в файл вместо отображения
 
@@ -191,15 +192,15 @@ def plot_features_common(target, neighbors, search_circle_utm, radius_meters, sh
     )
 
     plt.title(f'Участки и их взаиморасположение ({target["kad_id"]})', fontsize=12)
-    plt.xlabel('Координата X', fontsize=10)
-    plt.ylabel('Координата Y', fontsize=10)
+    # plt.xlabel('Координата X', fontsize=10)
+    # plt.ylabel('Координата Y', fontsize=10)
 
     # Создаём компактную легенду с группировкой по направлениям
     legend_elements = []
 
     # Целевой участок
     legend_elements.append(plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='blue',
-                                       markersize=8, label=f'{target["short_id"]} Целевой участок'))
+                                      markersize=8, label=f'{target["short_id"]} Целевой участок'))
 
     # # Группированные направления
     # for direction in directions:
@@ -217,9 +218,112 @@ def plot_features_common(target, neighbors, search_circle_utm, radius_meters, sh
     # Размещаем легенду внутри графика в верхнем правом углу
     # plt.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1, 1),
     #            fontsize=8, framealpha=0.9, borderpad=0.5)
-    plt.subplots_adjust(right=0.65)
+    # plt.subplots_adjust(right=0.65)
     ax.set_xticks([])
     ax.set_yticks([])
 
     return fig
 
+
+def get_polygons(geom):
+    """
+    Возвращает список Polygon из геометрии.
+    Работает и с Polygon, и с MultiPolygon.
+    """
+    if geom.geom_type == 'Polygon':
+        return [geom]
+    elif geom.geom_type == 'MultiPolygon':
+        return list(geom.geoms)
+    else:
+        return []
+
+
+def plot_features_from_wkt(
+        target_geom,
+        search_circle,
+        neighbors,
+        radius_meters,
+        should_draw_kad,
+        kad_id,
+        figsize=(8, 8),
+):
+    """
+    Отрисовка на основе заранее подготовленных геометрий (WKT).
+    Корректно работает с Polygon и MultiPolygon.
+    """
+    try:
+        PLOTS_DIR = settings.BASE_DIR / 'plots'
+        PLOTS_DIR.mkdir(exist_ok=True)
+
+        safe_kad_id = kad_id.replace(':', '_')
+        filename = f'plot_{safe_kad_id}.png'
+        filepath = PLOTS_DIR / filename
+
+        fig = plt.figure(figsize=figsize)
+        ax = fig.gca()
+
+        directions = [
+            "с северной стороны", "с северо-восточной стороны", "с восточной стороны",
+            "с юго-восточной стороны", "с южной стороны", "с юго-западной стороны",
+            "с западной стороны", "с северо-западной стороны"
+        ]
+        color_map = {direction: plt.cm.tab10(i) for i, direction in enumerate(directions)}
+
+        # Рисуем круг поиска
+        plt.plot(*search_circle.exterior.xy, color='blue', linewidth=0.5, linestyle='--')
+
+        # Рисуем секторы
+        sectors = get_sectors(search_circle)
+        for direction_name, sector_poly in sectors.items():
+            color = color_map.get(direction_name, 'lightgray')
+            x, y = sector_poly.exterior.xy
+            plt.fill(x, y, color=color, alpha=0.15)
+
+        # Рисуем целевой участок (может быть MultiPolygon)
+        for poly in get_polygons(target_geom):
+            plt.fill(*poly.exterior.xy, color='blue', alpha=0.4, label='Целевой участок')
+            plt.plot(*poly.exterior.xy, color='blue', linestyle='-')
+
+        # Подпись целевого участка (по центроиду всей геометрии)
+        plt.text(target_geom.centroid.x, target_geom.centroid.y,
+                 safe_kad_id, fontsize=6, ha='center', va='center')
+
+        # Рисуем соседей (каждый может быть MultiPolygon)
+        for neighbor in neighbors:
+            geom = neighbor['utm']
+            shapely.plotting.plot_polygon(geom, add_points=False)
+            direction = neighbor['dir_dist'][0][0] if neighbor['dir_dist'] else ''
+            color = color_map.get(direction.split(',')[0].strip(), 'gray')
+
+            # Обрабатываем каждый полигон в геометрии соседа
+            for poly in get_polygons(geom):
+                plt.fill(*poly.exterior.xy, color=color, alpha=0.5)
+                plt.plot(*poly.exterior.xy, color=color, linewidth=0.5)
+
+            # if should_draw_kad:
+            #     plt.text(geom.centroid.x, geom.centroid.y,
+            #              neighbor['short_id'], fontsize=8, ha='center', va='center')
+
+        # Настройка границ — используем search_circle.bounds
+        minx, miny, maxx, maxy = search_circle.bounds
+
+        # Добавляем небольшой запас (10-20%)
+        padding = (maxx - minx) * 0.1  # 10% от ширины
+
+        plt.xlim(minx - padding, maxx + padding)
+        plt.ylim(miny - padding, maxy + padding)
+
+        # plt.title(f'Участки и их взаиморасположение ({kad_id})', fontsize=12)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        fig.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+        plt.close(fig)
+
+        return str(filepath.relative_to(PLOTS_DIR))
+
+    except Exception as e:
+        print(f"Ошибка при сохранении графика: {e}")
+        import traceback
+        traceback.print_exc()
+        return None

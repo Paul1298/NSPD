@@ -11,8 +11,11 @@ import time
 import threading
 from typing import Dict, List
 
+from plotting import plot_features_from_wkt
 from .forms import AnalysisForm
 from .services import run_batch_with_callback
+
+import shapely.wkt
 
 # Глобальное хранилище сессий
 log_sessions: Dict[str, List[Dict]] = {}
@@ -73,12 +76,13 @@ def get_results(request, session_id: str):
             'logs': results_data['logs'],
             'success_count': results_data['success_count'],
             'total_count': results_data['total_count'],
+            'session_id': session_id,
         })
 
-        # Очищаем данные после отправки
-        del log_sessions[results_key]
-        if session_id in log_sessions:
-            del log_sessions[session_id]
+        # # Очищаем данные после отправки
+        # del log_sessions[results_key]
+        # if session_id in log_sessions:
+        #     del log_sessions[session_id]
 
         return JsonResponse({'success': True, 'html': html})
     else:
@@ -122,8 +126,6 @@ class IndexView(View):
                     radius_meters=form.cleaned_data['radius_meters'],
                     area_limit=form.cleaned_data['area_limit'],
                     min_intersection_percent=form.cleaned_data['min_intersection_percent'],
-                    draw_plots=form.cleaned_data['draw_plots'],
-                    draw_kad=form.cleaned_data['draw_kad'],
                     merge_directions=form.cleaned_data['merge_directions'],
                     log_callback=log_callback,
                     polygon_coordinates=form.cleaned_data.get('parsed_polygon'),  # <-- Передаем полигон
@@ -165,3 +167,73 @@ class ReportDownloadView(View):
         if not filepath.is_file():
             raise Http404
         return FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
+
+
+class PlotGenerationView(View):
+    def get(self, request, session_id: str, kad_id: str):
+        results_key = f"{session_id}_results"
+
+        if results_key not in log_sessions:
+            return JsonResponse({'success': False, 'error': 'Сессия не найдена'}, status=404)
+
+        results_data = log_sessions[results_key]
+        target_result = None
+
+        # Ищем нужный участок в результатах
+        for r in results_data['results']:
+            if r.kad_id == kad_id and r.success:
+                target_result = r
+                break
+
+        if not target_result or not target_result.target_geom_wkt:
+            return JsonResponse({'success': False, 'error': 'Данные для отрисовки отсутствуют'}, status=404)
+
+        try:
+            # Восстанавливаем геометрии из WKT
+            target_geom = shapely.wkt.loads(target_result.target_geom_wkt)
+            search_circle = shapely.wkt.loads(target_result.search_circle_wkt)
+
+            neighbors_for_plot = []
+            for n_data in target_result.neighbors_data:
+                neighbors_for_plot.append({
+                    'kad_id': n_data['kad_id'],
+                    'short_id': n_data['short_id'],
+                    'utm': shapely.wkt.loads(n_data['geom_wkt']),
+                    'dir_dist': n_data['dir_dist']
+                })
+
+            # Вызываем отрисовку ТОЛЬКО сейчас
+            draw_kad = request.GET.get('draw_kad', 'false').lower() == 'true'
+            plot_filename = plot_features_from_wkt(
+                target_geom=target_geom,
+                search_circle=search_circle,
+                neighbors=neighbors_for_plot,
+                radius_meters=int(request.GET.get('radius', 250)),
+                should_draw_kad=draw_kad,
+                kad_id=kad_id
+            )
+
+            if plot_filename:
+                return JsonResponse({
+                    'success': True,
+                    'plot_url': f'/plot-file/{plot_filename}'
+                })
+            else:
+                return JsonResponse({'success': False, 'error': 'Ошибка генерации графика'}, status=500)
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+class PlotDownloadView(View):
+    def get(self, request, filename):
+        # Разрешаем только файлы plot_*.png
+        if not filename.startswith('plot_') or not filename.endswith('.png'):
+            raise Http404
+
+        filepath = settings.BASE_DIR / 'plots' / filename
+        if not filepath.is_file():
+            raise Http404
+
+        # Отдаем файл как изображение
+        return FileResponse(open(filepath, 'rb'), content_type='image/png')

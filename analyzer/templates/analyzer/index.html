@@ -6,69 +6,84 @@
     <form id="analysis-form">
         {% csrf_token %}
 
-        <!-- Переключатель режима -->
-        <div class="field" style="margin-bottom: 1rem;">
-            <label style="display:flex; gap:1rem; cursor:pointer;">
-                <label><input type="radio" name="input_mode" value="kad" checked onchange="toggleInputMode()"> 📍
-                    Кадастровые номера</label>
-                <label><input type="radio" name="input_mode" value="polygon" onchange="toggleInputMode()"> 📐 Свой
-                    полигон</label>
-            </label>
+<!--        &lt;!&ndash; Переключатель режима &ndash;&gt;-->
+<!--        <div class="field" style="margin-bottom: 1rem;">-->
+<!--            <label style="display:flex; gap:2rem; cursor:pointer;">-->
+<!--                <label style="display:flex; align-items:center; gap:0.4rem;">-->
+<!--                    <input type="radio" name="input_mode" value="kad" checked onchange="toggleInputMode()">-->
+<!--                    📍 Кадастровые номера-->
+<!--                </label>-->
+<!--                <label style="display:flex; align-items:center; gap:0.4rem;">-->
+<!--                    <input type="radio" name="input_mode" value="polygon" onchange="toggleInputMode()">-->
+<!--                     Свой полигон-->
+<!--                </label>-->
+<!--            </label>-->
+<!--        </div>-->
+
+        <!-- 🔥 ДВУХКОЛОНОЧНАЯ СЕТКА: слева ввод, справа параметры -->
+        <div style="display: grid; grid-template-columns: 1fr 190px; gap: 1.25rem; align-items: start;">
+
+            <!-- Левая колонка: поле ввода -->
+            <div>
+                <div class="field" id="kad-field">
+                    <label for="id_kad_ids">Кадастровые номера</label>
+                    <textarea name="kad_ids" id="id_kad_ids" rows="6" placeholder="86:14:0101002:715"></textarea>
+                    <p class="helptext">По одному номеру на строку</p>
+                </div>
+
+                <div class="field" id="polygon-field" style="display:none;">
+                    <label for="id_polygon_coordinates">Координаты полигона</label>
+                    <textarea name="polygon_coordinates" id="id_polygon_coordinates" rows="6" placeholder="55.560255236, 37.892199320&#10;55.560271004, 37.892419993"></textarea>
+                    <p class="helptext">Формат: <code>широта, долгота</code> (по одной паре на строку). Полигон будет замкнут автоматически.</p>
+                </div>
+            </div>
+
+            <!-- Правая колонка: три поля друг под другом -->
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div class="field" style="margin-bottom: 0;">
+                    <label for="id_radius_meters">Радиус поиска (м)</label>
+                    <input type="number" name="radius_meters" id="id_radius_meters" value="250" min="10" max="5000">
+                </div>
+
+                <div class="field" style="margin-bottom: 0;">
+                    <label for="id_area_limit">Мин. площадь ЗУ (м²)</label>
+                    <input type="number" name="area_limit" id="id_area_limit" value="5" min="0">
+                </div>
+
+                <div class="field" style="margin-bottom: 0;">
+                    <label for="id_min_intersection_percent">Порог пересечения (%)</label>
+                    <input type="number" name="min_intersection_percent" id="id_min_intersection_percent" value="40" min="1" max="100">
+                </div>
+            </div>
         </div>
 
-        <div class="field" id="kad-field">
-            <label for="id_kad_ids">Кадастровые номера</label>
-            <textarea name="kad_ids" id="id_kad_ids" rows="6" placeholder="86:14:0101002:715"></textarea>
-            <p class="helptext">По одному номеру на строку</p>
-        </div>
-
-        <div class="field" id="polygon-field" style="display:none;">
-            <label for="id_polygon_coordinates">Координаты полигона</label>
-            <textarea name="polygon_coordinates" id="id_polygon_coordinates" rows="6" placeholder="55.560255236, 37.892199320
-55.560271004, 37.892419993
-55.560249892, 37.892592375"></textarea>
-            <p class="helptext">Формат: <code>широта, долгота</code> (по одной паре на строку). Полигон будет замкнут
-                автоматически.</p>
-        </div>
-
-        <div class="field">
-            <label for="id_radius_meters">Радиус поиска (м)</label>
-            <input type="number" name="radius_meters" id="id_radius_meters" value="100" min="10" max="5000">
-        </div>
-
-        <div class="field">
-            <label for="id_area_limit">Мин. площадь ЗУ (м²)</label>
-            <input type="number" name="area_limit" id="id_area_limit" value="5" min="0">
-        </div>
-
-        <div class="field">
-            <label for="id_min_intersection_percent">Порог пересечения (%)</label>
-            <input type="number" name="min_intersection_percent" id="id_min_intersection_percent" value="15" min="1"
-                   max="100">
-        </div>
-
-        <div class="field checkbox-field">
-            <input type="checkbox" name="draw_plots" id="id_draw_plots">
-            <label for="id_draw_plots">Создать визуализацию</label>
-        </div>
-
-        <div class="field checkbox-field">
-            <input type="checkbox" name="draw_kad" id="id_draw_kad">
-            <label for="id_draw_kad">Показывать номера на графиках</label>
-        </div>
-
-        <div class="field checkbox-field">
+        <!-- Чекбокс и кнопки под сеткой -->
+        <div class="field checkbox-field" style="margin-top: 1.25rem;">
             <input type="checkbox" name="merge_directions" id="id_merge_directions" checked>
-            <label for="id_merge_directions">Объединять направления</label>
+            <label for="id_merge_directions">Объединять направления в отчёте</label>
         </div>
 
         <div class="button-row">
-            <button type="submit" class="btn btn-primary" id="submit-btn">🔍 Запустить</button>
+            <button type="submit" class="btn btn-primary" id="submit-btn"> Запустить</button>
             <button type="button" class="btn btn-secondary" onclick="resetForm()">↻ Сброс</button>
         </div>
     </form>
     <div id="form-errors" style="display:none; margin-top:1rem;"></div>
 </div>
+
+<script>
+    function toggleInputMode() {
+        const mode = document.querySelector('input[name="input_mode"]:checked').value;
+        document.getElementById('kad-field').style.display = mode === 'kad' ? 'block' : 'none';
+        document.getElementById('polygon-field').style.display = mode === 'polygon' ? 'block' : 'none';
+
+        if (mode === 'kad') {
+            document.getElementById('id_polygon_coordinates').value = '';
+        } else {
+            document.getElementById('id_kad_ids').value = '';
+        }
+    }
+</script>
 {% endblock %}
 
 {% block results %}
@@ -91,10 +106,22 @@
         btn.disabled = true;
         btn.textContent = '⏳ Обработка...';
 
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+
+        // 🔥 НОВОЕ: Очищаем старые результаты и статус
+        document.getElementById('status-area').innerHTML = '';
+        document.getElementById('results-area').innerHTML = '';
+        document.getElementById('results-area').style.display = 'none';
+        document.getElementById('form-errors').style.display = 'none';
+        document.getElementById('form-errors').innerHTML = '';
+
         // Генерируем ID сессии
         currentSessionId = Date.now().toString();
 
-        // Показываем панель статуса
+        // Показываем панель статуса с логами
         document.getElementById('status-area').innerHTML = `
             <div class="card">
                 <h3>📋 Журнал выполнения</h3>
@@ -245,10 +272,20 @@
     function copyReport(id) {
         const ta = document.getElementById(id);
         ta.select();
+        ta.setSelectionRange(0, 99999); // Для мобильных
+
         navigator.clipboard.writeText(ta.value).then(() => {
-            const fb = document.getElementById(id.replace('report-', 'feedback-'));
-            fb.classList.add('show');
-            setTimeout(() => fb.classList.remove('show'), 2000);
+            const fb = document.getElementById(id.replace('report-text-', 'feedback-report-text-'));
+            if (fb) {
+                fb.classList.add('show');
+                setTimeout(() => fb.classList.remove('show'), 2000);
+            }
+
+            // Убираем выделение
+            window.getSelection().removeAllRanges();
+            ta.blur();
+        }).catch(err => {
+            console.error('Ошибка копирования:', err);
         });
     }
 
@@ -264,5 +301,60 @@
             document.getElementById('id_kad_ids').value = '';
         }
     }
+
+
+    function generatePlot(sessionId, kadId, btnElement) {
+    const containerId = `plot-container-${kadId}`;
+    const container = document.getElementById(containerId);
+
+    if (!container) {
+        console.error(`Контейнер ${containerId} не найден`);
+        return;
+    }
+
+    // Проверяем, загружен ли уже график
+    if (btnElement.dataset.loaded === 'true') {
+        // Переключаем видимость контейнера
+        if (container.style.display === 'none' || container.style.display === '') {
+            container.style.display = 'block';
+            btnElement.textContent = '📊 Скрыть график';
+        } else {
+            container.style.display = 'none';
+            btnElement.textContent = '📊 Показать график';
+        }
+        return;
+    }
+
+    // Первая загрузка — показываем контейнер
+    container.style.display = 'block';
+    container.innerHTML = '<div class="plot-container"><p class="text-muted">⏳ Генерация графика...</p></div>';
+
+    btnElement.disabled = true;
+    btnElement.textContent = '⏳ Загрузка...';
+
+    fetch(`/plot/${sessionId}/${kadId}/?draw_kad=true&radius=250`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                container.innerHTML = `<div class="plot-container"><img src="${data.plot_url}" class="plot-image" alt="График ${kadId}"></div>`;
+                btnElement.dataset.loaded = 'true';
+                btnElement.dataset.plotUrl = data.plot_url;
+                btnElement.disabled = false;
+                btnElement.textContent = '📊 Скрыть график';
+                btnElement.classList.remove('btn-primary');
+                btnElement.classList.add('btn-secondary');
+            } else {
+                container.innerHTML = `<div class="plot-container"><p class="text-muted">❌ ${data.error}</p></div>`;
+                btnElement.disabled = false;
+                btnElement.textContent = '📊 Повторить';
+            }
+        })
+        .catch(err => {
+            container.innerHTML = '<div class="plot-container"><p class="text-muted">❌ Ошибка сети</p></div>';
+            btnElement.disabled = false;
+            btnElement.textContent = '📊 Повторить';
+        });
+}
+
 </script>
 {% endblock %}

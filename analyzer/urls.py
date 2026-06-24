@@ -1,9 +1,11 @@
 from django.urls import path
-from .views import IndexView, ReportDownloadView, logs_stream, get_results
+from .views import IndexView, ReportDownloadView, logs_stream, get_results, PlotGenerationView, PlotDownloadView
 
 urlpatterns = [
     path('', IndexView.as_view(), name='index'),
     path('logs/<str:session_id>/', logs_stream, name='logs_stream'),
     path('reports/<str:filename>/', ReportDownloadView.as_view(), name='report_download'),
     path('results/<str:session_id>/', get_results, name='get_results'),
+    path('plot/<str:session_id>/<path:kad_id>/', PlotGenerationView.as_view(), name='generate_plot'),
+    path('plot-file/<str:filename>/', PlotDownloadView.as_view(), name='plot_download'),
 ]

@@ -20,9 +20,11 @@ class AnalysisForm(forms.Form):
     radius_meters = forms.IntegerField(initial=250, min_value=10, max_value=5000)
     area_limit = forms.IntegerField(initial=5, min_value=0)
     min_intersection_percent = forms.IntegerField(initial=15, min_value=1, max_value=100)
-    draw_plots = forms.BooleanField(required=False)
-    draw_kad = forms.BooleanField(required=False)
-    merge_directions = forms.BooleanField(required=False, initial=True)
+    merge_directions = forms.BooleanField(
+        label='Объединять направления',
+        initial=True,
+        required=False
+    )
 
     def clean(self):
         cleaned_data = super().clean()

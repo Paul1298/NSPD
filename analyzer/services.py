@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Callable, Any
 
+import shapely
 from pynspd import Nspd
 
 from data_provider import process_neighbors, process_target, search_area
@@ -13,9 +14,16 @@ class ParcelResult:
     success: bool
     message: str
     neighbors_count: int = 0
+
+    # Результаты анализа (текст/файлы)
     report_filename: Optional[str] = None
     report_text: Optional[str] = None
-    plot_filename: Optional[str] = None
+
+    # Данные для ОТЛОЖЕННОЙ отрисовки (храним как WKT строки)
+    target_geom_wkt: Optional[str] = None
+    search_circle_wkt: Optional[str] = None
+    neighbors_data: List[dict] = field(default_factory=list)
+    # neighbors_data содержит: {'kad_id': ..., 'short_id': ..., 'geom_wkt': ..., 'dir_dist': ...}
 
 
 def run_batch_with_callback(
@@ -23,15 +31,12 @@ def run_batch_with_callback(
         radius_meters: int,
         area_limit: int,
         min_intersection_percent: int,
-        draw_plots: bool = False,
-        draw_kad: bool = False,
         log_callback: Optional[Callable[[str, str], None]] = None,
         polygon_coordinates: Optional[List[List[float]]] = None,
         merge_directions: bool = True,
 ) -> Tuple[List[ParcelResult], List[str]]:
     results = []
     logs = []
-    figsize = (12, 8)
 
     def log(message: str, log_type: str = 'info'):
         logs.append(message)
@@ -52,9 +57,6 @@ def run_batch_with_callback(
             area_limit=area_limit,
             min_intersection_percent=min_intersection_percent,
             log=log,
-            draw_plots=draw_plots,
-            draw_kad=draw_kad,
-            figsize=figsize,
             merge_directions=merge_directions,
             target_override=target,
             crs_override=(crs_4326_to_utm, crs_utm_to_4326),
@@ -93,9 +95,6 @@ def run_batch_with_callback(
                     area_limit,
                     min_intersection_percent,
                     log,
-                    draw_plots,
-                    draw_kad,
-                    figsize,
                     merge_directions=merge_directions,
                 )
                 results.append(result)
@@ -120,9 +119,6 @@ def _analyze_one(
         area_limit: int,
         min_intersection_percent: int,
         log: Callable[[str, str], None],
-        draw_plots: bool = False,
-        draw_kad: bool = False,
-        figsize: tuple = (12, 8),
         merge_directions: bool = True,
         target_override: Optional[dict] = None,
         crs_override: Optional[tuple] = None,
@@ -185,24 +181,31 @@ def _analyze_one(
     report_filename = report_path.split('/')[-1].split('\\')[-1]
     log(f'  ✓ Отчёт сохранён: {report_filename}', 'success')
 
-    plot_filename = None
-    if draw_plots:
-        from plotting import plot_features_to_file
-        log(f'  🎨 Построение графика...', 'progress')
-        plot_filename = plot_features_to_file(
-            target, processed_neighbors, search_circle_utm, radius_meters, draw_kad, kad_id, figsize
-        )
-        if plot_filename:
-            log(f'  ✓ График сохранён: {plot_filename}', 'success')
-        else:
-            log(f'  ⚠️ Не удалось сохранить график', 'error')
+    plot_data = {
+        'target_geom_wkt': shapely.wkt.dumps(target['utm']),
+        'search_circle_wkt': shapely.wkt.dumps(search_circle_utm),
+        'neighbors_data': []
+    }
+
+    for n in processed_neighbors:
+        plot_data['neighbors_data'].append({
+            'kad_id': n['kad_id'],
+            'short_id': n['short_id'],
+            'geom_wkt': shapely.wkt.dumps(n['utm']),
+            'dir_dist': n['dir_dist']
+        })
+
+    # 🔥 УБИРАЕМ ВЫЗОВ plot_features_to_file ОТСЮДА
 
     return ParcelResult(
         kad_id=kad_id,
         success=True,
         message='Успешно',
         neighbors_count=len(processed_neighbors),
-        report_filename=report_filename,
+        report_filename=report_path.split('/')[-1],
         report_text=report_text,
-        plot_filename=plot_filename,
+        # Сохраняем данные для будущей отрисовки
+        target_geom_wkt=plot_data['target_geom_wkt'],
+        search_circle_wkt=plot_data['search_circle_wkt'],
+        neighbors_data=plot_data['neighbors_data'],
     )
