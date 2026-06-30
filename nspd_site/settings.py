@@ -54,7 +54,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'nspd_site.wsgi.application'
+ASGI_APPLICATION = 'nspd_site.asgi.application'
 
 DATABASES = {}
 
@@ -70,3 +70,4 @@ STATICFILES_DIRS = [BASE_DIR / 'analyzer' / 'static']
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REPORTS_DIR = BASE_DIR / 'reports'
+
