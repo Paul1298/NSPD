@@ -11,11 +11,11 @@ else:
 
 # 2. Папка для отчетов и БД должна быть в ДОСТУПНОМ для записи месте!
 # Например, в папке "Документы" пользователя или в AppData
-USER_DATA_DIR = Path.home() / "NSPD_App_Data"
-USER_DATA_DIR.mkdir(exist_ok=True)
-
-REPORTS_DIR = USER_DATA_DIR / "reports"
-REPORTS_DIR.mkdir(exist_ok=True)
+# USER_DATA_DIR = Path.home() / "NSPD_App_Data"
+# USER_DATA_DIR.mkdir(exist_ok=True)
+#
+# REPORTS_DIR = USER_DATA_DIR / "reports"
+# REPORTS_DIR.mkdir(exist_ok=True)
 
 SECRET_KEY = 'django-insecure-nspd-dev-only-change-in-production'
 
