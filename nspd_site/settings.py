@@ -71,4 +71,5 @@ STATICFILES_DIRS = [BASE_DIR / 'analyzer' / 'static']
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REPORTS_DIR = BASE_DIR / 'reports'
+REPORTS_DIR.mkdir(exist_ok=True)
 
