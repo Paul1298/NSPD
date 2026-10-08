@@ -1,21 +1,23 @@
+import asyncio
+import json
+import threading
+import time
+import traceback
+from pickle import NONE
+from typing import Dict, List
+
+import shapely.wkt
 from django.conf import settings
 from django.http import FileResponse, Http404, StreamingHttpResponse, JsonResponse
 from django.shortcuts import render
-from django.views import View
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
-import asyncio
-import json
-import time
-import threading
-from typing import Dict, List
+from django.utils.decorators import method_decorator
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
+from analyzer.forms import AnalysisForm
+from analyzer.services import run_batch_with_callback
 from plotting import plot_features_from_wkt
-from .forms import AnalysisForm
-from .services import run_batch_with_callback
-
-import shapely.wkt
 
 # Глобальное хранилище сессий
 log_sessions: Dict[str, List[Dict]] = {}
@@ -144,7 +146,7 @@ class IndexView(View):
                 log_callback("DONE", "done")
 
             except Exception as e:
-                log_callback(f"❌ Критическая ошибка: {str(e)}", "error")
+                log_callback(f"❌ Критическая ошибка: {str(traceback.format_exception(e))}", "error")
                 log_callback("DONE", "done")
 
         # Запускаем в отдельном потоке — НЕ блокируем ASGI-воркер
